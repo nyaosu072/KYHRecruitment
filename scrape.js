@@ -123,15 +123,23 @@ async function build() {
   const sources = { 잡코리아: jobkorea, 자소설닷컴: jasoseol, 마이나비코리아: mynavikorea, リクナビ: rikunabi, キャリタス就活: careertasu };
   // 사이트끼리는 동시에, 한 사이트 안에서는 순서대로
   const res = await Promise.allSettled(Object.values(sources).map(f => f()));
+  const file = path.join(__dirname, "jobs.json");
+  let prev = [];
+  try { prev = JSON.parse(fs.readFileSync(file, "utf8")).jobs; } catch {}
+  const today = new Date().toISOString().slice(0, 10);
   const seen = new Set(), jobs = [], errors = [];
   Object.keys(sources).forEach((name, i) => {
-    if (res[i].status === "rejected") return errors.push(`${name}: ${res[i].reason.message}`);
-    for (const j of res[i].value) if (!seen.has(j.id)) { seen.add(j.id); jobs.push(j); }
-    if (!res[i].value.length) errors.push(`${name}: 공고 0건 (사이트 구조가 바뀌었을 수 있음)`);
+    let got = res[i].status === "fulfilled" ? res[i].value : [];
+    if (!got.length) {
+      // 실패한 사이트는 직전 수집분을 유지 (마감 지난 공고는 뺌)
+      got = prev.filter(j => j.site === name && !(j.deadline && j.deadline < today));
+      errors.push(`${name}: ${res[i].status === "rejected" ? res[i].reason.message : "공고 0건"}${got.length ? ` (이전 수집분 ${got.length}건 표시 중)` : ""}`);
+    }
+    for (const j of got) if (!seen.has(j.id)) { seen.add(j.id); jobs.push(j); }
   });
   // 전부 실패하면 기존 jobs.json을 덮어쓰지 않음
   if (!jobs.length) throw new Error("모든 사이트 수집 실패: " + errors.join(" / "));
-  fs.writeFileSync(path.join(__dirname, "jobs.json"), JSON.stringify({ jobs, errors, fetched: new Date().toISOString() }));
+  fs.writeFileSync(file, JSON.stringify({ jobs, errors, fetched: new Date().toISOString() }));
   console.log(`jobs.json: ${jobs.length}건`, errors.length ? "\n오류: " + errors.join("\n") : "");
 }
 
