@@ -37,6 +37,29 @@ function types(s) {
   return [...new Set(t)];
 }
 
+// 예상 입사년도. 제목에 적힌 연도로 판단하고, 일본 신졸 사이트는 지금 모집 중인 졸업연도로 채움. 모르면 null
+// - "28卒" → 2028 (일본은 졸업한 해 4월 입사)
+// - "2026 하반기 공채" → 2027 (하반기 공채는 보통 다음 해 초 입사), "2027년 신입" → 2027
+// - "26년 하반기" 처럼 두 자리도 인정, "경력 10년" 같은 기간은 무시
+function entryYear(j, now = new Date()) {
+  const t = j.title;
+  let m = t.match(/(\d\d)卒/);
+  if (m) return 2000 + +m[1];
+  const jpSite = j.site === "キャリタス就活" || j.site === "リクナビ";
+  // 일본 사이트 제목의 "2026年10月開催"는 행사 날짜라서 연도 숫자는 한국 사이트에서만 봄
+  m = !jpSite && t.match(/(?:^|[^\d])(20\d\d|'?\d\d(?=년))\s*년?\s*(?:도\s*)?(상반기|하반기)?/);
+  if (m) {
+    const y = m[1].length === 4 ? +m[1] : 2000 + +m[1].replace("'", "");
+    if (y >= now.getFullYear() - 1 && y <= now.getFullYear() + 4) return m[2] === "하반기" ? y + 1 : y;
+  }
+  // 일본 신졸 채용은 3월에 다음 졸업연도로 넘어감: 본선고 = 올해 3월 이후면 내년 졸업생, 인턴십은 그다음 해
+  if (jpSite) {
+    const base = now.getFullYear() + (now.getMonth() >= 2 ? 1 : 0);
+    return j.types.includes("intern") ? base + 1 : base;
+  }
+  return null;
+}
+
 async function jobkorea() {
   const out = [];
   for (const kw of ["신입", "경력", "인턴", "일본어"]) for (const page of [1, 2, 3]) {
@@ -143,6 +166,7 @@ async function build() {
     }
     for (const j of got) if (!seen.has(j.id)) { seen.add(j.id); jobs.push(j); }
   });
+  for (const j of jobs) j.year = entryYear(j);
   // 전부 실패하면 기존 jobs.json을 덮어쓰지 않음
   if (!jobs.length) throw new Error("모든 사이트 수집 실패: " + errors.join(" / "));
   fs.writeFileSync(file, JSON.stringify({ jobs, errors, fetched: new Date().toISOString() }));
@@ -159,5 +183,19 @@ function serve() {
   }).listen(3000, () => console.log("http://localhost:3000"));
 }
 
-if (process.argv[2] === "serve") serve();
+if (process.argv[2] === "test") {
+  const now = new Date("2026-10-13"), y = (title, site = "잡코리아", types = ["new"]) => entryYear({ title, site, types }, now);
+  const assert = require("assert");
+  assert.equal(y("28卒_森永製菓_オープンカンパニー", "リクナビ", ["intern"]), 2028);
+  assert.equal(y("2026년 하반기 신입 공개채용"), 2027);
+  assert.equal(y("2026 하반기 DN솔루션즈 신입사원 채용"), 2027);
+  assert.equal(y("[애경그룹] AK아이에스 2027년 신입사원 공개 채용"), 2027);
+  assert.equal(y("[(주)코스알엑스]26년 하반기 경력 및 신입"), 2027);
+  assert.equal(y("2026년도 하반기 신입직원 채용공고"), 2027);
+  assert.equal(y("[일본계 한국법인] 반도체장비업계 총무(경력 10년 이상)"), null);
+  assert.equal(y("渡辺パイプ 新卒採用", "キャリタス就活"), 2027);
+  assert.equal(y("東芝のインターンシップ", "リクナビ", ["intern"]), 2028);
+  assert.equal(y("【2026年10月開催】仕事体験", "リクナビ", ["intern"]), 2028);
+  console.log("ok");
+} else if (process.argv[2] === "serve") serve();
 else build().catch(e => { console.error(e.message); process.exit(1); });
