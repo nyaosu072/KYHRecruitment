@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>한일 채용공고 모아보기</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap">
+<style>
+:root{
+  --bg:#f5f6f4; --panel:#fff; --fg:#1d2420; --muted:#5f6b64; --line:#d9dfdb;
+  --accent:#1f6f54; --accent-fg:#fff; --kr:#2b5bb5; --jp:#b8323a; --warn:#b26a00;
+  --sans:"IBM Plex Sans KR",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#141917; --panel:#1c2320; --fg:#e6ebe8; --muted:#9aa7a0; --line:#2e3833;
+  --accent:#4fbf93; --accent-fg:#0d1a14; --kr:#7ea4ee; --jp:#f08088; --warn:#f0b35a; color-scheme:dark}}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 var(--sans)}
+.wrap{max-width:1200px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:1.5rem;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 20px}
+.grid{display:grid;grid-template-columns:280px 1fr;gap:24px;align-items:start}
+@media (max-width:800px){.grid{grid-template-columns:1fr}}
+form{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:14px;position:sticky;top:12px}
+@media (max-width:800px){form{position:static}}
+fieldset{border:0;margin:0;padding:0;min-width:0}
+legend,.lbl{display:block;font-size:.75rem;font-weight:700;letter-spacing:.06em;color:var(--muted);padding:0;margin-bottom:6px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{border:1px solid var(--line);border-radius:999px;padding:4px 11px;cursor:pointer;font-size:.88rem}
+.seg input:checked+label{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.seg input:focus-visible+label{outline:2px solid var(--accent);outline-offset:2px}
+select,input[type=text]{width:100%;box-sizing:border-box;font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+.bar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;color:var(--muted);font-size:.9rem}
+.err{color:var(--warn);font-size:.85rem;margin:0 0 10px}
+ul.jobs{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.job{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:grid;gap:4px;min-width:0}
+.job a{color:var(--fg);font-weight:600;text-decoration:none}
+.job a:hover{text-decoration:underline}
+.job a:focus-visible{outline:2px solid var(--accent)}
+.meta{display:flex;flex-wrap:wrap;gap:4px 10px;color:var(--muted);font-size:.85rem}
+.tag{font-size:.72rem;font-weight:700;padding:1px 7px;border-radius:4px;border:1px solid currentColor;white-space:nowrap}
+.kr{color:var(--kr)} .jp{color:var(--jp)} .dl{color:var(--warn)}
+.empty{color:var(--muted);padding:40px 0;text-align:center}
+.pager{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:16px}
+.pager button{min-width:36px;padding:6px 10px;font:inherit;font-size:.9rem;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--fg);cursor:pointer}
+.pager button[aria-current]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.pager button:disabled{opacity:.4;cursor:default}
+.pager button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>한일 채용공고 모아보기</h1>
+  <p class="sub">잡코리아 · 자소설닷컴 · 마이나비코리아 · リクナビ · キャリタス就活 공고를 한 목록으로 보여 줘요.</p>
+  <div class="grid">
+    <form id="f" onsubmit="event.preventDefault()">
+      <fieldset><legend>근무지</legend><div class="seg" id="loc"></div></fieldset>
+      <fieldset><legend>채용 구분</legend><div class="seg" id="type"></div></fieldset>
+      <fieldset><legend>입사년도</legend><div class="seg" id="year"></div></fieldset>
+      <div><label class="lbl" for="ind">업종</label><select id="ind"></select></div>
+      <div><label class="lbl" for="job">직무</label><select id="job"></select></div>
+      <div><label class="lbl" for="kw">키워드 (회사명·제목)</label><input type="text" id="kw" placeholder="예: 삼성, 商社, 일본어"></div>
+      <fieldset><legend>사이트</legend><div class="seg" id="site"></div></fieldset>
+      <div><label class="lbl" for="sort">정렬</label><select id="sort"><option value="">사이트 순</option><option value="dl">마감 임박순</option></select></div>
+    </form>
+    <main>
+      <div class="bar"><span id="count">불러오는 중…</span><span id="fetched"></span></div>
+      <p class="err" id="err" hidden></p>
+      <ul class="jobs" id="out"></ul>
+      <nav class="pager" id="pager" aria-label="페이지"></nav>
+    </main>
+  </div>
+</div>
+<script>
+const NOW=new Date().getFullYear();
+const LOC=[["all","전체"],["kr","한국 근무"],["jp","일본 근무"]];
+const TYPE=[["all","전체"],["new","신입"],["intern","인턴"],["exp","경력"]];
+const YEAR=[["all","전체"],...[NOW,NOW+1,NOW+2].map(y=>[String(y),y+"년"])];
+const SITES=["잡코리아","자소설닷컴","마이나비코리아","リクナビ","キャリタス就活"];
+// [값, 표시, 한국어 검색어, 일본어 검색어]
+const IND=[["","전체","",""],["it","IT·인터넷","IT","IT"],["maker","제조·메이커","제조","メーカー"],["trade","상사·무역","무역","商社"],["fin","금융·보험","금융","金融"],["consult","컨설팅","컨설팅","コンサル"],["media","광고·미디어","광고","広告"],["dist","유통·소매","유통","小売"],["travel","호텔·관광·항공","호텔","ホテル"],["logi","물류","물류","物流"],["game","게임·엔터","게임","ゲーム"]];
+const JOB=[["","전체","",""],["dev","개발·엔지니어","개발","エンジニア"],["sales","영업","영업","営業"],["mkt","마케팅·기획","마케팅","マーケティング"],["office","사무·인사","사무","事務"],["acct","재무·회계","회계","経理"],["design","디자인","디자인","デザイン"],["trans","통번역","통역","通訳"],["cs","서비스·CS","서비스","接客"],["rnd","연구개발","연구","研究"]];
+const TYPE_KR={new:"신입",exp:"경력",intern:"인턴"};
+
+const $=id=>document.getElementById(id);
+const esc=t=>String(t??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function seg(id,opts,def,multi){$(id).innerHTML=opts.map(([v,t])=>`<input type="${multi?"checkbox":"radio"}" name="${id}" id="${id}-${v}" value="${v}"${multi||v==def?" checked":""}><label for="${id}-${v}">${t}</label>`).join("")}
+seg("loc",LOC,"all"); seg("type",TYPE,"all"); seg("year",YEAR,"all"); seg("site",SITES.map(s=>[s,s]),null,true);
+$("ind").innerHTML=IND.map(([v,t])=>`<option value="${v}">${t}</option>`).join("");
+$("job").innerHTML=JOB.map(([v,t])=>`<option value="${v}">${t}</option>`).join("");
+const pick=n=>document.querySelector(`input[name=${n}]:checked`).value;
+const row=(list,v)=>list.find(x=>x[0]==v);
+
+let jobs=[], list=[], page=1;
+const PER=20;
+
+async function load(){
+  try{
+    const r=await fetch("jobs.json",{cache:"no-cache"});
+    if(!r.ok)throw new Error(r.status);
+    const d=await r.json();
+    jobs=d.jobs; $("fetched").textContent="마지막 수집 "+new Date(d.fetched).toLocaleString("ko");
+    $("err").hidden=!d.errors.length; $("err").textContent="일부 사이트를 못 불러왔어요: "+d.errors.join(" / ");
+  }catch(e){ $("err").hidden=false; $("err").textContent="공고 목록(jobs.json)을 불러오지 못했어요. ("+e.message+")"; }
+  render();
+}
+
+// 업종·직무는 제목·회사·업종 태그에 한국어나 일본어 단어가 들어 있는지로 거름
+function matchWords(j,words){ if(!words.length)return true; const s=(j.title+" "+j.company+" "+(j.tags||"")).toLowerCase(); return words.some(w=>s.includes(w.toLowerCase())); }
+// ponytail: 입사년도는 제목에 적힌 연도(2027, 27卒, 27년)로만 판단. 연도 표기가 없는 공고는 항상 보여 줌
+function matchYear(j,y){ if(y=="all")return true; const t=j.title; if(!/20\d\d|\d\d卒|\d\d년/.test(t))return true; return t.includes(y)||t.includes(y.slice(2)+"卒")||t.includes(y.slice(2)+"년"); }
+
+function render(){
+  const loc=pick("loc"), type=pick("type"), year=pick("year"), kw=$("kw").value.trim().toLowerCase();
+  const sites=new Set([...document.querySelectorAll("input[name=site]:checked")].map(i=>i.value));
+  const ind=row(IND,$("ind").value), job=row(JOB,$("job").value);
+  page=1;
+  list=jobs.filter(j=>sites.has(j.site)&&(loc=="all"||j.loc==loc)&&(type=="all"||j.types.includes(type))&&matchYear(j,year)
+    &&(!kw||(j.title+" "+j.company+" "+(j.tags||"")).toLowerCase().includes(kw))
+    &&matchWords(j,[ind[2],ind[3]].filter(Boolean))&&matchWords(j,[job[2],job[3]].filter(Boolean)));
+  if($("sort").value=="dl")list=[...list].sort((a,b)=>(a.deadline||"9999").localeCompare(b.deadline||"9999"));
+  $("count").textContent=`공고 ${list.length}건`;
+  show();
+}
+
+function show(){
+  const pages=Math.max(1,Math.ceil(list.length/PER));
+  $("out").innerHTML=list.length?list.slice((page-1)*PER,page*PER).map(j=>`<li class="job">
+    <div class="meta"><span class="tag ${j.loc}">${j.loc=="kr"?"한국":"일본"}</span><span class="tag">${esc(j.site)}</span>${j.types.map(t=>`<span class="tag">${TYPE_KR[t]}</span>`).join("")}${j.deadline?`<span class="tag dl">~${esc(j.deadline)}</span>`:""}</div>
+    <a href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>
+    <div class="meta">${[j.company,j.location,j.career,j.tags].filter(Boolean).map(x=>`<span>${esc(x)}</span>`).join("")}</div></li>`).join("")
+    :`<li class="empty">조건에 맞는 공고가 없어요. 필터를 줄여 보세요.</li>`;
+  // 현재 페이지 앞뒤 2쪽 + 처음·끝 쪽만 번호로 보여 줌
+  const nums=[...new Set([1,page-2,page-1,page,page+1,page+2,pages])].filter(n=>n>=1&&n<=pages).sort((a,b)=>a-b);
+  const btn=(n,t,dis)=>`<button type="button" data-p="${n}"${dis?" disabled":""}${n==page&&!t?' aria-current="page"':""}${t?` aria-label="${t=="‹"?"이전":"다음"} 페이지"`:""}>${t||n}</button>`;
+  $("pager").innerHTML=pages<2?"":btn(page-1,"‹",page==1)
+    +nums.map((n,i)=>(i&&n-nums[i-1]>1?"<span>…</span>":"")+btn(n)).join("")
+    +btn(page+1,"›",page==pages);
+}
+
+$("pager").addEventListener("click",e=>{const p=e.target.closest("button")?.dataset.p; if(!p)return; page=+p; show(); $("count").scrollIntoView({behavior:"smooth"});});
+$("f").addEventListener("input",render);
+load();
+</script>
+</body>
+</html>
