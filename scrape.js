@@ -60,6 +60,13 @@ function entryYear(j, now = new Date()) {
   return null;
 }
 
+// 제목에 연도가 없을 때의 추정: 경력은 즉시 입사(올해), 신입·인턴은 9월 이후 공고면 다음 해
+function guessYear(j, now = new Date()) {
+  const y = now.getFullYear();
+  if (j.types.includes("exp") && !j.types.includes("new")) return y;
+  return now.getMonth() >= 8 ? y + 1 : y;
+}
+
 async function jobkorea() {
   const out = [];
   for (const kw of ["신입", "경력", "인턴", "일본어"]) for (const page of [1, 2, 3]) {
@@ -166,7 +173,11 @@ async function build() {
     }
     for (const j of got) if (!seen.has(j.id)) { seen.add(j.id); jobs.push(j); }
   });
-  for (const j of jobs) j.year = entryYear(j);
+  for (const j of jobs) {
+    j.year = entryYear(j);
+    j.yearGuess = j.year == null;
+    if (j.yearGuess) j.year = guessYear(j);
+  }
   // 전부 실패하면 기존 jobs.json을 덮어쓰지 않음
   if (!jobs.length) throw new Error("모든 사이트 수집 실패: " + errors.join(" / "));
   fs.writeFileSync(file, JSON.stringify({ jobs, errors, fetched: new Date().toISOString() }));
@@ -196,6 +207,9 @@ if (process.argv[2] === "test") {
   assert.equal(y("渡辺パイプ 新卒採用", "キャリタス就活"), 2027);
   assert.equal(y("東芝のインターンシップ", "リクナビ", ["intern"]), 2028);
   assert.equal(y("【2026年10月開催】仕事体験", "リクナビ", ["intern"]), 2028);
+  assert.equal(guessYear({ types: ["exp"] }, now), 2026);
+  assert.equal(guessYear({ types: ["new", "exp"] }, now), 2027);
+  assert.equal(guessYear({ types: ["new"] }, new Date("2026-05-01")), 2026);
   console.log("ok");
 } else if (process.argv[2] === "serve") serve();
 else build().catch(e => { console.error(e.message); process.exit(1); });
