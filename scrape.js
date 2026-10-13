@@ -8,12 +8,18 @@ const path = require("path");
 const UA = { "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130 Safari/537.36" };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// 같은 사이트에 1초 간격으로 순서대로 요청
+// 같은 사이트에 1초 간격으로 순서대로 요청. 연결 오류는 3번까지 다시 시도하고, 실패하면 원인 코드를 남김
 async function get(url, opts = {}) {
-  await sleep(1000);
-  const r = await fetch(url, { ...opts, headers: { ...UA, ...opts.headers }, signal: AbortSignal.timeout(20000) });
-  if (!r.ok) throw new Error(`${r.status} ${url}`);
-  return r.text();
+  for (let i = 1; ; i++) {
+    await sleep(1000 * i);
+    try {
+      const r = await fetch(url, { ...opts, headers: { ...UA, ...opts.headers }, signal: AbortSignal.timeout(20000) });
+      if (!r.ok) throw Object.assign(new Error(`HTTP ${r.status}`), { final: true });
+      return await r.text();
+    } catch (e) {
+      if (e.final || i >= 3) throw new Error(`${e.message}${e.cause ? " (" + (e.cause.code || e.cause.message) + ")" : ""} ${url}`);
+    }
+  }
 }
 
 const text = s => s.replace(/<!-- -->/g, "").replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/&middot;/g, "·").replace(/&#x27;|&#39;/g, "'").replace(/&quot;/g, '"').replace(/\s+/g, " ").trim();
