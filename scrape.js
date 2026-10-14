@@ -170,7 +170,9 @@ async function linkareer() {
     for (const [k, a] of Object.entries(st)) {
       if (!/^Activity:\d+$/.test(k) || !a.title) continue;
       const regions = (a.regions || []).map(r => r.name);
-      out.push({ site: "링커리어", loc: regions.some(r => /해외|일본/.test(r)) ? "jp" : "kr", id: "lk" + a.id, title: a.title,
+      // 링커리어 지역은 국내 시·도 + "해외" 하나뿐이라, 일본인지는 제목으로 판단. 그 밖의 해외는 "ovs"
+      const loc = /일본|도쿄|東京|오사카|大阪|Japan/i.test(a.title + regions.join(" ")) ? "jp" : regions.includes("해외") ? "ovs" : "kr";
+      out.push({ site: "링커리어", loc, id: "lk" + a.id, title: a.title,
         company: a.organizationName, location: regions.join(" "),
         tags: (a.categories || []).map(c => st[c.__ref]?.name).filter(Boolean).join(", "),
         deadline: a.recruitCloseAt ? kstDate(a.recruitCloseAt) : undefined,

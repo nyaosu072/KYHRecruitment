@@ -126,7 +126,7 @@ function render(){
 function show(){
   const pages=Math.max(1,Math.ceil(list.length/PER));
   $("out").innerHTML=list.length?list.slice((page-1)*PER,page*PER).map(j=>`<li class="job">
-    <div class="meta"><span class="tag ${j.loc}">${j.loc=="kr"?"한국":"일본"}</span><span class="tag">${esc(j.site)}</span>${j.types.map(t=>`<span class="tag">${TYPE_KR[t]}</span>`).join("")}${j.year?`<span class="tag"${j.yearGuess?' title="제목에 연도가 없어 공고 시기로 추정했어요"':""}>${j.year}년 입사${j.yearGuess?" (추정)":""}</span>`:""}${j.deadline?`<span class="tag dl">~${esc(j.deadline)}</span>`:""}</div>
+    <div class="meta"><span class="tag ${j.loc}">${{kr:"한국",jp:"일본",ovs:"해외"}[j.loc]}</span><span class="tag">${esc(j.site)}</span>${j.types.map(t=>`<span class="tag">${TYPE_KR[t]}</span>`).join("")}${j.year?`<span class="tag"${j.yearGuess?' title="제목에 연도가 없어 공고 시기로 추정했어요"':""}>${j.year}년 입사${j.yearGuess?" (추정)":""}</span>`:""}${j.deadline?`<span class="tag dl">~${esc(j.deadline)}</span>`:""}</div>
     <a href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>
     <div class="meta">${[j.company,j.location,j.career,j.tags].filter(Boolean).map(x=>`<span>${esc(x)}</span>`).join("")}</div></li>`).join("")
     :`<li class="empty">조건에 맞는 공고가 없어요. 필터를 줄여 보세요.</li>`;
