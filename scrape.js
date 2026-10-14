@@ -22,7 +22,7 @@ async function get(url, opts = {}) {
   }
 }
 
-const text = s => s.replace(/<!-- -->/g, "").replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/&middot;/g, "·").replace(/&#x27;|&#39;/g, "'").replace(/&quot;/g, '"').replace(/\s+/g, " ").trim();
+const text = s => s.replace(/<!--[\s\S]*?-->/g, "").replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/&middot;/g, "·").replace(/&#x27;|&#39;/g, "'").replace(/&quot;/g, '"').replace(/\s+/g, " ").trim();
 const enc = encodeURIComponent;
 
 // 제목·경력 문구에서 채용 구분 추출. 설명회·인턴십·仕事体験 같은 행사는 채용이 아니라서 "인턴"으로만 분류
@@ -155,8 +155,80 @@ async function careertasu() {
   return out;
 }
 
+// 한국 시간 기준 YYYY-MM-DD
+const kstDate = d => new Date(new Date(d).getTime() + 9 * 3600e3).toISOString().slice(0, 10);
+
+async function linkareer() {
+  // 목록 페이지의 __NEXT_DATA__ 안에 Apollo 캐시로 공고가 들어 있음
+  const kind = { NEW: "new", EXPERIENCED: "exp", INTERN: "intern" };
+  const out = [];
+  for (let page = 1; page <= 10; page++) {
+    const h = await get(`https://linkareer.com/list/recruit?filterBy_activityTypeID=5&filterBy_status=OPEN&orderBy_direction=DESC&orderBy_field=RECENT&page=${page}`);
+    const nd = JSON.parse((h.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/) || [, "{}"])[1]);
+    const st = nd.props?.pageProps?.__APOLLO_STATE__ || {};
+    for (const [k, a] of Object.entries(st)) {
+      if (!/^Activity:\d+$/.test(k) || !a.title) continue;
+      const regions = (a.regions || []).map(r => r.name);
+      out.push({ site: "링커리어", loc: regions.some(r => /해외|일본/.test(r)) ? "jp" : "kr", id: "lk" + a.id, title: a.title,
+        company: a.organizationName, location: regions.join(" "),
+        tags: (a.categories || []).map(c => st[c.__ref]?.name).filter(Boolean).join(", "),
+        deadline: a.recruitCloseAt ? kstDate(a.recruitCloseAt) : undefined,
+        types: [...new Set((a.jobTypes || []).map(t => kind[t]).filter(Boolean))], url: `https://linkareer.com/activity/${a.id}` });
+    }
+  }
+  return out;
+}
+
+async function gaishishukatsu() {
+  // 공개 API. targetYear(졸업연도 = 입사년도)를 그대로 씀
+  const out = [];
+  for (let page = 1; page <= 5; page++) {
+    const j = JSON.parse(await get(`https://api-public.gaishishukatsu.com/3.0/recruitment?limit=100&order=deadline&allgy=true&page=${page}`, { headers: { accept: "application/json" } }));
+    for (const r of j.recruitments) {
+      const ends = (r.schedules || []).map(s => s.entryEnd).filter(Boolean).sort();
+      out.push({ site: "外資就活", loc: "jp", id: "gs" + r.id, title: r.title,
+        company: (r.companies || []).map(c => c.name).join(", "),
+        tags: [...new Set([...(r.companies || []).map(c => c.industry), ...(r.groupedJobTypes || []).map(g => g.name)])].filter(Boolean).join(", "),
+        career: r.type?.label, year: r.targetYear > 2000 ? r.targetYear : undefined,
+        deadline: ends.length ? kstDate(ends.at(-1)) : r.displayEndAt ? kstDate(r.displayEndAt) : undefined,
+        types: r.type?.label === "本選考" ? ["new"] : ["intern"], url: `https://gaishishukatsu.com/recruiting_info/view/${r.detailID}` });
+    }
+    if (!j.nextPage) break;
+  }
+  return out;
+}
+
+async function worldjob() {
+  // 해외채용공고 전체(한 번에 50건) 중 일본 공고만
+  const out = [], now = new Date();
+  for (let page = 1; page <= 15; page++) {
+    const h = await get("https://www.worldjob.or.kr/advnc/ajax/getEpmtList.do", { method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded; charset=UTF-8", "x-requested-with": "XMLHttpRequest" },
+      body: `showItemListCount=50&pageIndex=${page}&orderByType=DESC&orderByKey=A.DTA_RGST_DT&dobType=1&viewVersion=V2` });
+    const boxes = h.split('class="post-box"').slice(1);
+    if (!boxes.length) break;
+    for (const b of boxes) {
+      if (!b.includes('alt="일본 국기"')) continue;
+      const v = b.match(/goView1\('([^']+)','([^']+)','([^']+)','([^']+)'\)/);
+      if (!v) continue;
+      const li = [...((b.match(/<ul>([\s\S]*?)<\/ul>/) || [, ""])[1]).matchAll(/<li>([\s\S]*?)<\/li>/g)].map(m => text(m[1].replace(/&nbsp;/g, " ")));
+      const empType = (text(b).match(/\[\s*(정규직|계약직|파견직|인턴|기타)\s*\]/) || [, ""])[1];
+      // 마감일은 "10/28(수)"처럼 월/일만 있음. 지난 달 숫자면 내년으로 봄
+      const md = text((b.match(/day-box">([\s\S]*?)<\/p>/) || [, ""])[1]).match(/(\d\d)\/(\d\d)/);
+      const deadline = md ? `${now.getFullYear() + (+md[1] < now.getMonth() ? 1 : 0)}-${md[1]}-${md[2]}` : undefined;
+      const career = li[1] || "";
+      out.push({ site: "월드잡플러스", loc: "jp", id: "wj" + v[1], title: text(b.match(/<h5[\s\S]*?<\/h5>/)[0]),
+        company: text((b.match(/busiInfoPopup[^>]*>([\s\S]*?)<i/) || [, ""])[1]), tags: li[0], career, location: "일본", deadline,
+        types: empType === "인턴" ? ["intern"] : /무관/.test(career) ? ["new", "exp"] : /경력/.test(career) ? ["exp"] : ["new"],
+        url: `https://www.worldjob.or.kr/advnc/view.do?dobType=${v[4]}&joCrtfcNo=${v[1]}&joCrtfcDsp=${v[2]}&joCrtfcDspSn=${v[3]}` });
+    }
+  }
+  return out;
+}
+
 async function build() {
-  const sources = { 잡코리아: jobkorea, 자소설닷컴: jasoseol, 마이나비코리아: mynavikorea, リクナビ: rikunabi, キャリタス就活: careertasu };
+  const sources = { 잡코리아: jobkorea, 자소설닷컴: jasoseol, 링커리어: linkareer, 마이나비코리아: mynavikorea, 월드잡플러스: worldjob,
+    リクナビ: rikunabi, キャリタス就活: careertasu, 外資就活: gaishishukatsu };
   // 사이트끼리는 동시에, 한 사이트 안에서는 순서대로
   const res = await Promise.allSettled(Object.values(sources).map(f => f()));
   const file = path.join(__dirname, "jobs.json");
@@ -174,7 +246,7 @@ async function build() {
     for (const j of got) if (!seen.has(j.id)) { seen.add(j.id); jobs.push(j); }
   });
   for (const j of jobs) {
-    j.year = entryYear(j);
+    j.year = j.year ?? entryYear(j);
     j.yearGuess = j.year == null;
     if (j.yearGuess) j.year = guessYear(j);
   }

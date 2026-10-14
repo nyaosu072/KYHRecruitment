@@ -51,7 +51,7 @@ ul.jobs{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 <body>
 <div class="wrap">
   <h1>한일 채용공고 모아보기</h1>
-  <p class="sub">잡코리아 · 자소설닷컴 · 마이나비코리아 · リクナビ · キャリタス就活 공고를 한 목록으로 보여 줘요.</p>
+  <p class="sub">한국·일본 채용 사이트 8곳의 공고를 한 목록으로 보여 줘요.</p>
   <div class="grid">
     <form id="f" onsubmit="event.preventDefault()">
       <fieldset><legend>근무지</legend><div class="seg" id="loc"></div></fieldset>
@@ -76,7 +76,7 @@ const NOW=new Date().getFullYear();
 const LOC=[["all","전체"],["kr","한국"],["jp","일본"]];
 const TYPE=[["all","전체"],["new","신입"],["intern","인턴"],["exp","경력"]];
 const YEAR=[["all","전체"],...[NOW,NOW+1,NOW+2,NOW+3].map(y=>[String(y),y+"년"])];
-const SITES=["잡코리아","자소설닷컴","마이나비코리아","リクナビ","キャリタス就活"];
+const SITES=["잡코리아","자소설닷컴","링커리어","마이나비코리아","월드잡플러스","リクナビ","キャリタス就活","外資就活"];
 // [값, 표시, 한국어 검색어, 일본어 검색어]
 const IND=[["","전체","",""],["it","IT·인터넷","IT","IT"],["maker","제조·메이커","제조","メーカー"],["trade","상사·무역","무역","商社"],["fin","금융·보험","금융","金融"],["consult","컨설팅","컨설팅","コンサル"],["media","광고·미디어","광고","広告"],["dist","유통·소매","유통","小売"],["travel","호텔·관광·항공","호텔","ホテル"],["logi","물류","물류","物流"],["game","게임·엔터","게임","ゲーム"]];
 const JOB=[["","전체","",""],["dev","개발·엔지니어","개발","エンジニア"],["sales","영업","영업","営業"],["mkt","마케팅·기획","마케팅","マーケティング"],["office","사무·인사","사무","事務"],["acct","재무·회계","회계","経理"],["design","디자인","디자인","デザイン"],["trans","통번역","통역","通訳"],["cs","서비스·CS","서비스","接客"],["rnd","연구개발","연구","研究"]];
