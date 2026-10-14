@@ -18,8 +18,12 @@ body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 var(--sans)}
 .wrap{max-width:1200px;margin:0 auto;padding:24px 16px 48px}
 h1{font-size:1.5rem;margin:0 0 4px}
 .top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:4px 16px}
-.contact{font-size:.85rem;color:var(--muted);text-decoration:none}
+.topright{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;font-size:.85rem;color:var(--muted)}
+.contact{color:var(--muted);text-decoration:none}
 .contact:hover{color:var(--accent);text-decoration:underline}
+.lang a{color:var(--muted);text-decoration:none;padding:0 2px}
+.lang a[aria-current]{color:var(--fg);font-weight:700}
+.lang a:hover{color:var(--accent)}
 .sub{color:var(--muted);margin:0 0 20px}
 .grid{display:grid;grid-template-columns:280px 1fr;gap:24px;align-items:start}
 @media (max-width:800px){.grid{grid-template-columns:1fr}}
@@ -64,45 +68,79 @@ ul.jobs{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><h1>한일 채용공고 모아보기</h1><a class="contact" href="mailto:o_hyun2@naver.com">문의사항 o_hyun2@naver.com</a></div>
-  <p class="sub">한국·일본 채용 사이트 8곳의 공고를 한 목록으로 보여 줘요.</p>
+  <div class="top"><h1 data-t="title"></h1>
+    <span class="topright"><span class="lang"><a href="?lang=ko" data-lang="ko">한국어</a> | <a href="?lang=en" data-lang="en">English</a></span>
+    <a class="contact" href="mailto:o_hyun2@naver.com"><span data-t="contact"></span> o_hyun2@naver.com</a></span></div>
+  <p class="sub" data-t="sub"></p>
   <div class="grid">
     <form id="f" onsubmit="event.preventDefault()">
-      <div class="fhead"><b>필터</b><button type="button" id="fold" aria-expanded="true" aria-controls="f">접기</button></div>
-      <fieldset><legend>근무지</legend><div class="seg" id="loc"></div></fieldset>
-      <fieldset><legend>채용 구분</legend><div class="seg" id="type"></div></fieldset>
-      <fieldset><legend>입사년도</legend><div class="seg" id="year"></div></fieldset>
-      <div><label class="lbl" for="ind">업종</label><select id="ind"></select></div>
-      <div><label class="lbl" for="job">직무</label><select id="job"></select></div>
-      <div><label class="lbl" for="kw">키워드 (회사명·제목)</label><input type="text" id="kw" placeholder="예: 삼성, 商社, 일본어"></div>
-      <fieldset><legend>사이트</legend><div class="seg" id="site"></div></fieldset>
-      <div><label class="lbl" for="sort">정렬</label><select id="sort"><option value="">사이트 순</option><option value="dl">마감 임박순</option></select></div>
+      <div class="fhead"><b data-t="filter"></b><button type="button" id="fold" aria-expanded="true" aria-controls="f"></button></div>
+      <fieldset id="locbox"><legend data-t="loc"></legend><div class="seg" id="loc"></div></fieldset>
+      <fieldset><legend data-t="type"></legend><div class="seg" id="type"></div></fieldset>
+      <fieldset><legend data-t="year"></legend><div class="seg" id="year"></div></fieldset>
+      <div><label class="lbl" for="ind" data-t="ind"></label><select id="ind"></select></div>
+      <div><label class="lbl" for="job" data-t="job"></label><select id="job"></select></div>
+      <div><label class="lbl" for="kw" data-t="kw"></label><input type="text" id="kw"></div>
+      <fieldset><legend data-t="site"></legend><div class="seg" id="site"></div></fieldset>
+      <div><label class="lbl" for="sort" data-t="sort"></label><select id="sort"></select></div>
     </form>
     <main>
-      <div class="bar"><span id="count">불러오는 중…</span><span id="fetched"></span></div>
+      <div class="bar"><span id="count"></span><span id="fetched"></span></div>
       <p class="err" id="err" hidden></p>
       <ul class="jobs" id="out"></ul>
-      <nav class="pager" id="pager" aria-label="페이지"></nav>
+      <nav class="pager" id="pager"></nav>
     </main>
   </div>
 </div>
 <script>
+// 언어: ?lang=en → 브라우저에 저장된 값 → 한국어
+let LANG=new URLSearchParams(location.search).get("lang");
+try{ if(LANG)localStorage.setItem("lang",LANG); else LANG=localStorage.getItem("lang"); }catch{}
+if(LANG!=="en")LANG="ko";
+const EN=LANG==="en";
+
+const T={
+  ko:{title:"한일 채용공고 모아보기",sub:"한국·일본 채용 사이트 8곳의 공고를 한 목록으로 보여 줘요.",contact:"문의사항",filter:"필터",fold:"접기",unfold:"펼치기",
+    loc:"근무지",type:"채용 구분",year:"입사년도",ind:"업종",job:"직무",kw:"키워드 (회사명·제목)",kwPh:"예: 삼성, 商社, 일본어",site:"사이트",sort:"정렬",
+    sortSite:"사이트 순",sortDl:"마감 임박순",all:"전체",loading:"불러오는 중…",count:n=>`공고 ${n}건`,fetched:d=>"마지막 수집 "+d.toLocaleString("ko"),
+    err:s=>"일부 사이트를 못 불러왔어요: "+s,loadErr:m=>`공고 목록(jobs.json)을 불러오지 못했어요. (${m})`,empty:"조건에 맞는 공고가 없어요. 필터를 줄여 보세요.",
+    yearLbl:y=>y+"년",start:(y,g)=>`${y}년 입사${g?" (추정)":""}`,guessTip:"제목에 연도가 없어 공고 시기로 추정했어요",pages:"페이지",prev:"이전 페이지",next:"다음 페이지",
+    loc_:{kr:"한국",jp:"일본",ovs:"해외"},types:{new:"신입",intern:"인턴",exp:"경력",contract:"계약직"}},
+  en:{title:"Japan Job Listings",sub:"New-grad jobs, internships and info sessions from Japanese job sites in one list. Updated every 6 hours.",contact:"Contact",filter:"Filters",fold:"Hide",unfold:"Show",
+    loc:"Location",type:"Type",year:"Start year",ind:"Industry",job:"Job type",kw:"Keyword (company or title)",kwPh:"e.g. 商社, Sony, エンジニア",site:"Sites",sort:"Sort",
+    sortSite:"By site",sortDl:"Deadline soonest",all:"All",loading:"Loading…",count:n=>`${n} listings`,fetched:d=>"Last updated "+d.toLocaleString("en"),
+    err:s=>"Some sites could not be updated, showing earlier listings: "+s,loadErr:m=>`Could not load the listings (${m}).`,empty:"No listings match these filters. Try removing some.",
+    yearLbl:y=>String(y),start:(y,g)=>`Start ${y}${g?" (est.)":""}`,guessTip:"No year in the title, estimated from the posting date",pages:"Pages",prev:"Previous page",next:"Next page",
+    loc_:{kr:"Korea",jp:"Japan",ovs:"Overseas"},types:{new:"New grad",intern:"Internship / event",exp:"Mid-career",contract:"Contract"}},
+}[LANG];
+
 const NOW=new Date().getFullYear();
-const LOC=[["all","전체"],["kr","한국"],["jp","일본"]];
-const TYPE=[["all","전체"],["new","신입"],["intern","인턴"],["exp","경력"],["contract","계약직"]];
-const YEAR=[["all","전체"],...[NOW,NOW+1,NOW+2,NOW+3].map(y=>[String(y),y+"년"])];
-const SITES=["잡코리아","자소설닷컴","링커리어","마이나비코리아","월드잡플러스","リクナビ","キャリタス就活","外資就活"];
-// [값, 표시, 한국어 검색어, 일본어 검색어]
-const IND=[["","전체","",""],["it","IT·인터넷","IT","IT"],["maker","제조·메이커","제조","メーカー"],["trade","상사·무역","무역","商社"],["fin","금융·보험","금융","金融"],["consult","컨설팅","컨설팅","コンサル"],["media","광고·미디어","광고","広告"],["dist","유통·소매","유통","小売"],["travel","호텔·관광·항공","호텔","ホテル"],["logi","물류","물류","物流"],["game","게임·엔터","게임","ゲーム"]];
-const JOB=[["","전체","",""],["dev","개발·엔지니어","개발","エンジニア"],["sales","영업","영업","営業"],["mkt","마케팅·기획","마케팅","マーケティング"],["office","사무·인사","사무","事務"],["acct","재무·회계","회계","経理"],["design","디자인","디자인","デザイン"],["trans","통번역","통역","通訳"],["cs","서비스·CS","서비스","接客"],["rnd","연구개발","연구","研究"]];
-const TYPE_KR={new:"신입",exp:"경력",intern:"인턴",contract:"계약직"};
+// 영어판은 일본 채용 사이트만
+const SITES=EN?["リクナビ","キャリタス就活","外資就活"]:["잡코리아","자소설닷컴","링커리어","마이나비코리아","월드잡플러스","リクナビ","キャリタス就活","外資就活"];
+const SITE_EN={"リクナビ":"Rikunabi","キャリタス就活":"Career-tasu","外資就活":"Gaishi Shukatsu"};
+const siteName=s=>EN?SITE_EN[s]||s:s;
+const LOC=[["all",T.all],["kr",T.loc_.kr],["jp",T.loc_.jp]];
+const TYPE=[["all",T.all],...["new","intern","exp","contract"].map(k=>[k,T.types[k]])];
+const YEAR=[["all",T.all],...[NOW,NOW+1,NOW+2,NOW+3].map(y=>[String(y),T.yearLbl(y)])];
+// [값, 한국어 표시, 한국어 검색어, 일본어 검색어, 영어 표시]
+const IND=[["","전체","","","All"],["it","IT·인터넷","IT","IT","IT / Internet"],["maker","제조·메이커","제조","メーカー","Manufacturing"],["trade","상사·무역","무역","商社","Trading"],["fin","금융·보험","금융","金融","Finance / Insurance"],["consult","컨설팅","컨설팅","コンサル","Consulting"],["media","광고·미디어","광고","広告","Advertising / Media"],["dist","유통·소매","유통","小売","Retail"],["travel","호텔·관광·항공","호텔","ホテル","Hotels / Travel"],["logi","물류","물류","物流","Logistics"],["game","게임·엔터","게임","ゲーム","Games / Entertainment"]];
+const JOB=[["","전체","","","All"],["dev","개발·엔지니어","개발","エンジニア","Engineering"],["sales","영업","영업","営業","Sales"],["mkt","마케팅·기획","마케팅","マーケティング","Marketing / Planning"],["office","사무·인사","사무","事務","Office / HR"],["acct","재무·회계","회계","経理","Accounting"],["design","디자인","디자인","デザイン","Design"],["trans","통번역","통역","通訳","Interpreting"],["cs","서비스·CS","서비스","接客","Customer service"],["rnd","연구개발","연구","研究","R&D"]];
 
 const $=id=>document.getElementById(id);
 const esc=t=>String(t??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-function seg(id,opts,def,multi){$(id).innerHTML=opts.map(([v,t])=>`<input type="${multi?"checkbox":"radio"}" name="${id}" id="${id}-${v}" value="${v}"${multi||v==def?" checked":""}><label for="${id}-${v}">${t}</label>`).join("")}
-seg("loc",LOC,"all"); seg("type",TYPE,"all"); seg("year",YEAR,"all"); seg("site",SITES.map(s=>[s,s]),null,true);
-$("ind").innerHTML=IND.map(([v,t])=>`<option value="${v}">${t}</option>`).join("");
-$("job").innerHTML=JOB.map(([v,t])=>`<option value="${v}">${t}</option>`).join("");
+
+// 정적 문구 채우기
+document.documentElement.lang=LANG; document.title=T.title;
+document.querySelectorAll("[data-t]").forEach(el=>el.textContent=T[el.dataset.t]);
+document.querySelectorAll("[data-lang]").forEach(a=>{ if(a.dataset.lang===LANG)a.setAttribute("aria-current","true"); });
+$("kw").placeholder=T.kwPh; $("count").textContent=T.loading; $("pager").setAttribute("aria-label",T.pages);
+$("sort").innerHTML=`<option value="">${T.sortSite}</option><option value="dl">${T.sortDl}</option>`;
+if(EN)$("locbox").hidden=true;
+
+function seg(id,opts,def,multi){$(id).innerHTML=opts.map(([v,t])=>`<input type="${multi?"checkbox":"radio"}" name="${id}" id="${id}-${v}" value="${v}"${multi||v==def?" checked":""}><label for="${id}-${v}">${esc(t)}</label>`).join("")}
+seg("loc",LOC,"all"); seg("type",TYPE,"all"); seg("year",YEAR,"all"); seg("site",SITES.map(s=>[s,siteName(s)]),null,true);
+$("ind").innerHTML=IND.map(r=>`<option value="${r[0]}">${esc(EN?r[4]:r[1])}</option>`).join("");
+$("job").innerHTML=JOB.map(r=>`<option value="${r[0]}">${esc(EN?r[4]:r[1])}</option>`).join("");
 const pick=n=>document.querySelector(`input[name=${n}]:checked`).value;
 const row=(list,v)=>list.find(x=>x[0]==v);
 
@@ -114,9 +152,13 @@ async function load(){
     const r=await fetch("jobs.json",{cache:"no-cache"});
     if(!r.ok)throw new Error(r.status);
     const d=await r.json();
-    jobs=d.jobs; $("fetched").textContent="마지막 수집 "+new Date(d.fetched).toLocaleString("ko");
-    $("err").hidden=!d.errors.length; $("err").textContent="일부 사이트를 못 불러왔어요: "+d.errors.join(" / ");
-  }catch(e){ $("err").hidden=false; $("err").textContent="공고 목록(jobs.json)을 불러오지 못했어요. ("+e.message+")"; }
+    jobs=d.jobs.filter(j=>SITES.includes(j.site)&&(!EN||j.loc==="jp"));
+    $("fetched").textContent=T.fetched(new Date(d.fetched));
+    // 오류 문구는 "사이트명: 내용" 형식. 영어판은 해당 사이트 이름만 보여 줌
+    const errs=d.errors.filter(e=>SITES.includes(e.split(":")[0]));
+    $("err").hidden=!errs.length;
+    $("err").textContent=T.err(EN?errs.map(e=>siteName(e.split(":")[0])).join(", "):errs.join(" / "));
+  }catch(e){ $("err").hidden=false; $("err").textContent=T.loadErr(e.message); }
   render();
 }
 
@@ -126,7 +168,7 @@ function matchWords(j,words){ if(!words.length)return true; const s=(j.title+" "
 function matchYear(j,y){ return y=="all"||j.year==y; }
 
 function render(){
-  const loc=pick("loc"), type=pick("type"), year=pick("year"), kw=$("kw").value.trim().toLowerCase();
+  const loc=EN?"all":pick("loc"), type=pick("type"), year=pick("year"), kw=$("kw").value.trim().toLowerCase();
   const sites=new Set([...document.querySelectorAll("input[name=site]:checked")].map(i=>i.value));
   const ind=row(IND,$("ind").value), job=row(JOB,$("job").value);
   page=1;
@@ -134,20 +176,20 @@ function render(){
     &&(!kw||(j.title+" "+j.company+" "+(j.tags||"")).toLowerCase().includes(kw))
     &&matchWords(j,[ind[2],ind[3]].filter(Boolean))&&matchWords(j,[job[2],job[3]].filter(Boolean)));
   if($("sort").value=="dl")list=[...list].sort((a,b)=>(a.deadline||"9999").localeCompare(b.deadline||"9999"));
-  $("count").textContent=`공고 ${list.length}건`;
+  $("count").textContent=T.count(list.length);
   show();
 }
 
 function show(){
   const pages=Math.max(1,Math.ceil(list.length/PER));
   $("out").innerHTML=list.length?list.slice((page-1)*PER,page*PER).map(j=>`<li class="job">
-    <div class="meta"><span class="tag ${j.loc}">${{kr:"한국",jp:"일본",ovs:"해외"}[j.loc]}</span><span class="tag">${esc(j.site)}</span>${j.types.map(t=>`<span class="tag">${TYPE_KR[t]}</span>`).join("")}${j.year?`<span class="tag"${j.yearGuess?' title="제목에 연도가 없어 공고 시기로 추정했어요"':""}>${j.year}년 입사${j.yearGuess?" (추정)":""}</span>`:""}${j.deadline?`<span class="tag dl">~${esc(j.deadline)}</span>`:""}</div>
+    <div class="meta">${EN?"":`<span class="tag ${j.loc}">${T.loc_[j.loc]}</span>`}<span class="tag">${esc(siteName(j.site))}</span>${j.types.map(t=>`<span class="tag">${T.types[t]}</span>`).join("")}${j.year?`<span class="tag"${j.yearGuess?` title="${T.guessTip}"`:""}>${T.start(j.year,j.yearGuess)}</span>`:""}${j.deadline?`<span class="tag dl">~${esc(j.deadline)}</span>`:""}</div>
     <a href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>
     <div class="meta">${[j.company,j.location,j.career,j.tags].filter(Boolean).map(x=>`<span>${esc(x)}</span>`).join("")}</div></li>`).join("")
-    :`<li class="empty">조건에 맞는 공고가 없어요. 필터를 줄여 보세요.</li>`;
+    :`<li class="empty">${T.empty}</li>`;
   // 현재 페이지 앞뒤 2쪽 + 처음·끝 쪽만 번호로 보여 줌
   const nums=[...new Set([1,page-2,page-1,page,page+1,page+2,pages])].filter(n=>n>=1&&n<=pages).sort((a,b)=>a-b);
-  const btn=(n,t,dis)=>`<button type="button" data-p="${n}"${dis?" disabled":""}${n==page&&!t?' aria-current="page"':""}${t?` aria-label="${t=="‹"?"이전":"다음"} 페이지"`:""}>${t||n}</button>`;
+  const btn=(n,t,dis)=>`<button type="button" data-p="${n}"${dis?" disabled":""}${n==page&&!t?' aria-current="page"':""}${t?` aria-label="${t=="‹"?T.prev:T.next}"`:""}>${t||n}</button>`;
   $("pager").innerHTML=pages<2?"":btn(page-1,"‹",page==1)
     +nums.map((n,i)=>(i&&n-nums[i-1]>1?"<span>…</span>":"")+btn(n)).join("")
     +btn(page+1,"›",page==pages);
@@ -161,8 +203,9 @@ function fitFilter(){ const f=$("f"); f.style.maxHeight=(innerHeight-Math.max(12
 addEventListener("scroll",fitFilter,{passive:true}); addEventListener("resize",fitFilter); fitFilter();
 
 // 필터 접기/펼치기 (브라우저에 기억)
-function setFold(on){ $("f").classList.toggle("folded",on); document.querySelector(".grid").classList.toggle("folded",on); $("fold").textContent=on?"펼치기":"접기"; $("fold").setAttribute("aria-expanded",!on); fitFilter(); }
+function setFold(on){ $("f").classList.toggle("folded",on); document.querySelector(".grid").classList.toggle("folded",on); $("fold").textContent=on?T.unfold:T.fold; $("fold").setAttribute("aria-expanded",!on); fitFilter(); }
 $("fold").addEventListener("click",()=>{ const on=!$("f").classList.contains("folded"); setFold(on); try{localStorage.setItem("filterFolded",on?"1":"")}catch{} });
+setFold(false);
 try{ if(localStorage.getItem("filterFolded"))setFold(true); }catch{}
 load();
 </script>
