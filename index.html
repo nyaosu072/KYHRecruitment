@@ -32,7 +32,8 @@ form{background:var(--panel);border:1px solid var(--line);border-radius:10px;pad
 form.folded>:not(.fhead){display:none}
 /* 접으면 왼쪽 칸을 버튼 크기로 줄이고 공고 목록을 넓게 */
 .grid.folded{grid-template-columns:auto minmax(0,1fr)}
-form.folded{padding:6px}
+form.folded{padding:6px;overflow:visible;max-height:none!important}
+form.folded .fhead{justify-content:center}
 form.folded .fhead b{display:none}
 @media (max-width:800px){.grid.folded{grid-template-columns:1fr} form.folded{justify-self:start}}
 fieldset{border:0;margin:0;padding:0;min-width:0}
