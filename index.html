@@ -23,8 +23,13 @@ h1{font-size:1.5rem;margin:0 0 4px}
 .sub{color:var(--muted);margin:0 0 20px}
 .grid{display:grid;grid-template-columns:280px 1fr;gap:24px;align-items:start}
 @media (max-width:800px){.grid{grid-template-columns:1fr}}
-form{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:14px;position:sticky;top:12px;max-height:calc(100vh - 24px);overflow-y:auto;overscroll-behavior:contain}
-@media (max-width:800px){form{position:static;max-height:none;overflow:visible}}
+form{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:14px;position:sticky;top:12px;overflow-y:auto;overscroll-behavior:contain;box-sizing:border-box}
+@media (max-width:800px){form{position:static;max-height:none!important;overflow:visible}}
+.fhead{display:flex;justify-content:space-between;align-items:center}
+.fhead b{font-size:.95rem}
+.fhead button{font:inherit;font-size:.82rem;padding:3px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);cursor:pointer}
+.fhead button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+form.folded>:not(.fhead){display:none}
 fieldset{border:0;margin:0;padding:0;min-width:0}
 legend,.lbl{display:block;font-size:.75rem;font-weight:700;letter-spacing:.06em;color:var(--muted);padding:0;margin-bottom:6px}
 .seg{display:flex;flex-wrap:wrap;gap:6px}
@@ -57,6 +62,7 @@ ul.jobs{list-style:none;margin:0;padding:0;display:grid;gap:8px}
   <p class="sub">한국·일본 채용 사이트 8곳의 공고를 한 목록으로 보여 줘요.</p>
   <div class="grid">
     <form id="f" onsubmit="event.preventDefault()">
+      <div class="fhead"><b>필터</b><button type="button" id="fold" aria-expanded="true" aria-controls="f">접기</button></div>
       <fieldset><legend>근무지</legend><div class="seg" id="loc"></div></fieldset>
       <fieldset><legend>채용 구분</legend><div class="seg" id="type"></div></fieldset>
       <fieldset><legend>입사년도</legend><div class="seg" id="year"></div></fieldset>
@@ -143,6 +149,15 @@ function show(){
 
 $("pager").addEventListener("click",e=>{const p=e.target.closest("button")?.dataset.p; if(!p)return; page=+p; show(); $("count").scrollIntoView({behavior:"smooth"});});
 $("f").addEventListener("input",render);
+
+// 필터 칸 높이를 지금 화면에 보이는 영역에 맞춤 (페이지를 내리기 전에도 아래쪽이 잘리지 않게)
+function fitFilter(){ const f=$("f"); f.style.maxHeight=(innerHeight-Math.max(12,f.getBoundingClientRect().top)-12)+"px"; }
+addEventListener("scroll",fitFilter,{passive:true}); addEventListener("resize",fitFilter); fitFilter();
+
+// 필터 접기/펼치기 (브라우저에 기억)
+function setFold(on){ $("f").classList.toggle("folded",on); $("fold").textContent=on?"펼치기":"접기"; $("fold").setAttribute("aria-expanded",!on); fitFilter(); }
+$("fold").addEventListener("click",()=>{ const on=!$("f").classList.contains("folded"); setFold(on); try{localStorage.setItem("filterFolded",on?"1":"")}catch{} });
+try{ if(localStorage.getItem("filterFolded"))setFold(true); }catch{}
 load();
 </script>
 </body>
