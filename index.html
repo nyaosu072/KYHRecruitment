@@ -23,8 +23,8 @@ h1{font-size:1.5rem;margin:0 0 4px}
 .sub{color:var(--muted);margin:0 0 20px}
 .grid{display:grid;grid-template-columns:280px 1fr;gap:24px;align-items:start}
 @media (max-width:800px){.grid{grid-template-columns:1fr}}
-form{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:14px;position:sticky;top:12px}
-@media (max-width:800px){form{position:static}}
+form{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:14px;position:sticky;top:12px;max-height:calc(100vh - 24px);overflow-y:auto;overscroll-behavior:contain}
+@media (max-width:800px){form{position:static;max-height:none;overflow:visible}}
 fieldset{border:0;margin:0;padding:0;min-width:0}
 legend,.lbl{display:block;font-size:.75rem;font-weight:700;letter-spacing:.06em;color:var(--muted);padding:0;margin-bottom:6px}
 .seg{display:flex;flex-wrap:wrap;gap:6px}
