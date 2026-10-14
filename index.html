@@ -160,7 +160,7 @@ function fitFilter(){ const f=$("f"); f.style.maxHeight=(innerHeight-Math.max(12
 addEventListener("scroll",fitFilter,{passive:true}); addEventListener("resize",fitFilter); fitFilter();
 
 // 필터 접기/펼치기 (브라우저에 기억)
-function setFold(on){ $("f").classList.toggle("folded",on); document.querySelector(".grid").classList.toggle("folded",on); $("fold").textContent=on?"필터 펼치기":"접기"; $("fold").setAttribute("aria-expanded",!on); fitFilter(); }
+function setFold(on){ $("f").classList.toggle("folded",on); document.querySelector(".grid").classList.toggle("folded",on); $("fold").textContent=on?"펼치기":"접기"; $("fold").setAttribute("aria-expanded",!on); fitFilter(); }
 $("fold").addEventListener("click",()=>{ const on=!$("f").classList.contains("folded"); setFold(on); try{localStorage.setItem("filterFolded",on?"1":"")}catch{} });
 try{ if(localStorage.getItem("filterFolded"))setFold(true); }catch{}
 load();
