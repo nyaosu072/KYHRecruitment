@@ -34,6 +34,7 @@ function types(s) {
   if (/경력|中途|経験者/.test(s)) t.push("exp");
   if (/인턴|インターン/.test(s)) t.push("intern");
   if (/경력무관|신입·경력|신입 및 경력/.test(s)) t.push("new", "exp");
+  if (/계약직|파견직|契約社員|派遣/.test(s)) t.push("contract");
   return [...new Set(t)];
 }
 
@@ -63,7 +64,7 @@ function entryYear(j, now = new Date()) {
 // 제목에 연도가 없을 때의 추정: 경력은 즉시 입사(올해), 신입·인턴은 9월 이후 공고면 다음 해
 function guessYear(j, now = new Date()) {
   const y = now.getFullYear();
-  if (j.types.includes("exp") && !j.types.includes("new")) return y;
+  if (!j.types.includes("new") && !j.types.includes("intern") && (j.types.includes("exp") || j.types.includes("contract"))) return y;
   return now.getMonth() >= 8 ? y + 1 : y;
 }
 
@@ -95,7 +96,7 @@ async function jasoseol() {
   return j.employment.filter(e => new Date(e.end_time) >= now).map(e => ({
     site: "자소설닷컴", loc: "kr", id: "js" + e.id, title: e.title, company: e.name, location: "",
     tags: "", deadline: e.end_time.slice(0, 10),
-    types: [...new Set(e.employments.flatMap(x => div[x.division] || []))],
+    types: [...new Set([...e.employments.flatMap(x => div[x.division] || []), ...types(e.title)])],
     url: `https://jasoseol.com/recruit/${e.id}`,
   }));
 }
@@ -113,7 +114,7 @@ async function mynavikorea() {
       out.push({ site: "마이나비코리아", loc: /^\[일본\s/.test(title) ? "jp" : loc, id: "mk" + id, title,
         company: (title.match(/^\[([^\]]+)\]/) || [, ""])[1], tags: bars[0] || "", career: bars[1] || "",
         location: bars.slice(2).join(" "),
-        types: types((bars[1] || "") + " " + title), url: `https://www.mynavikorea.co.kr/recruit/recruit_view?r_seq=${id}` });
+        types: types((bars[1] || "") + " " + title + " " + (text(c).match(/#\s*(정규직|계약직|파견직)/g) || []).join(" ")), url: `https://www.mynavikorea.co.kr/recruit/recruit_view?r_seq=${id}` });
     }
   }
   return out;
@@ -160,7 +161,7 @@ const kstDate = d => new Date(new Date(d).getTime() + 9 * 3600e3).toISOString().
 
 async function linkareer() {
   // 목록 페이지의 __NEXT_DATA__ 안에 Apollo 캐시로 공고가 들어 있음
-  const kind = { NEW: "new", EXPERIENCED: "exp", INTERN: "intern" };
+  const kind = { NEW: "new", EXPERIENCED: "exp", INTERN: "intern", CONTRACT: "contract" };
   const out = [];
   for (let page = 1; page <= 10; page++) {
     const h = await get(`https://linkareer.com/list/recruit?filterBy_activityTypeID=5&filterBy_status=OPEN&orderBy_direction=DESC&orderBy_field=RECENT&page=${page}`);
@@ -219,7 +220,7 @@ async function worldjob() {
       const career = li[1] || "";
       out.push({ site: "월드잡플러스", loc: "jp", id: "wj" + v[1], title: text(b.match(/<h5[\s\S]*?<\/h5>/)[0]),
         company: text((b.match(/busiInfoPopup[^>]*>([\s\S]*?)<i/) || [, ""])[1]), tags: li[0], career, location: "일본", deadline,
-        types: empType === "인턴" ? ["intern"] : /무관/.test(career) ? ["new", "exp"] : /경력/.test(career) ? ["exp"] : ["new"],
+        types: empType === "인턴" ? ["intern"] : [...(/무관/.test(career) ? ["new", "exp"] : /경력/.test(career) ? ["exp"] : ["new"]), ...(/계약직|파견직/.test(empType) ? ["contract"] : [])],
         url: `https://www.worldjob.or.kr/advnc/view.do?dobType=${v[4]}&joCrtfcNo=${v[1]}&joCrtfcDsp=${v[2]}&joCrtfcDspSn=${v[3]}` });
     }
   }
@@ -280,6 +281,9 @@ if (process.argv[2] === "test") {
   assert.equal(y("東芝のインターンシップ", "リクナビ", ["intern"]), 2028);
   assert.equal(y("【2026年10月開催】仕事体験", "リクナビ", ["intern"]), 2028);
   assert.equal(guessYear({ types: ["exp"] }, now), 2026);
+  assert.equal(guessYear({ types: ["contract"] }, now), 2026);
+  assert.deepEqual(types("인천공항시설관리 2026년 제7차 계약직 채용"), ["contract"]);
+  assert.deepEqual(types("신입·경력 계약직"), ["new", "exp", "contract"]);
   assert.equal(guessYear({ types: ["new", "exp"] }, now), 2027);
   assert.equal(guessYear({ types: ["new"] }, new Date("2026-05-01")), 2026);
   console.log("ok");
