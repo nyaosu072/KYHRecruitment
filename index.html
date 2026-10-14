@@ -100,7 +100,7 @@ if(LANG!=="en")LANG="ko";
 const EN=LANG==="en";
 
 const T={
-  ko:{title:"한일 채용공고 모아보기",sub:"한국·일본 채용 사이트 8곳의 공고를 한 목록으로 보여 줘요.",contact:"문의사항",filter:"필터",fold:"접기",unfold:"펼치기",
+  ko:{title:"한일 채용공고 모아보기",sub:"한국·일본 채용 사이트 11곳의 공고를 한 목록으로 보여 줘요.",contact:"문의사항",filter:"필터",fold:"접기",unfold:"펼치기",
     loc:"근무지",type:"채용 구분",year:"입사년도",ind:"업종",job:"직무",kw:"키워드 (회사명·제목)",kwPh:"예: 삼성, 商社, 일본어",site:"사이트",sort:"정렬",
     sortSite:"사이트 순",sortDl:"마감 임박순",all:"전체",loading:"불러오는 중…",count:n=>`공고 ${n}건`,fetched:d=>"마지막 수집 "+d.toLocaleString("ko"),
     err:s=>"일부 사이트를 못 불러왔어요: "+s,loadErr:m=>`공고 목록(jobs.json)을 불러오지 못했어요. (${m})`,empty:"조건에 맞는 공고가 없어요. 필터를 줄여 보세요.",
@@ -116,8 +116,9 @@ const T={
 
 const NOW=new Date().getFullYear();
 // 영어판은 일본 채용 사이트만
-const SITES=EN?["リクナビ","キャリタス就活","外資就活"]:["잡코리아","자소설닷컴","링커리어","마이나비코리아","월드잡플러스","リクナビ","キャリタス就活","外資就活"];
-const SITE_EN={"リクナビ":"Rikunabi","キャリタス就活":"Career-tasu","外資就活":"Gaishi Shukatsu"};
+const JP_SITES=["リクナビ","キャリタス就活","外資就活","キャリアチケット","Daijob","Wantedly"];
+const SITES=EN?JP_SITES:["잡코리아","자소설닷컴","링커리어","마이나비코리아","월드잡플러스",...JP_SITES];
+const SITE_EN={"リクナビ":"Rikunabi","キャリタス就活":"Career-tasu","外資就活":"Gaishi Shukatsu","キャリアチケット":"Career Ticket"};
 const siteName=s=>EN?SITE_EN[s]||s:s;
 const LOC=[["all",T.all],["kr",T.loc_.kr],["jp",T.loc_.jp]];
 const TYPE=[["all",T.all],...["new","intern","exp","contract"].map(k=>[k,T.types[k]])];

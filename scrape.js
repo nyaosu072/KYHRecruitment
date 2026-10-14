@@ -46,7 +46,7 @@ function entryYear(j, now = new Date()) {
   const t = j.title;
   let m = t.match(/(\d\d)卒/);
   if (m) return 2000 + +m[1];
-  const jpSite = j.site === "キャリタス就活" || j.site === "リクナビ";
+  const jpSite = ["キャリタス就活", "リクナビ", "キャリアチケット", "Wantedly"].includes(j.site);
   // 일본 사이트 제목의 "2026年10月開催"는 행사 날짜라서 연도 숫자는 한국 사이트에서만 봄
   m = !jpSite && t.match(/(?:^|[^\d])(20\d\d|'?\d\d(?=년))\s*년?\s*(?:도\s*)?(상반기|하반기)?/);
   if (m) {
@@ -229,9 +229,68 @@ async function worldjob() {
   return out;
 }
 
+async function daijob() {
+  // 일본 근무(working_a_locations 230/102) + 新卒歓迎(company_features 1024)
+  const out = [];
+  for (let page = 1; page <= 10; page++) {
+    const h = await get(`https://www.daijob.com/jobs/search_result?working_a_locations[]=230&working_a_locations[]=102&job_search_form_hidden=1&company_features[]=1024&page=${page}`);
+    const cards = h.split('class="job-card-wrap"').slice(1);
+    if (!cards.length) break;
+    for (const c of cards) {
+      const id = (c.match(/\/jobs\/detail\/(\d+)/) || [])[1];
+      if (!id) continue;
+      const title = text((c.match(/job-card__title[^>]*>([\s\S]*?)<\/h2>/) || [, ""])[1]);
+      out.push({ site: "Daijob", loc: "jp", id: "dj" + id, title,
+        company: text((c.match(/fw-bolder[^>]*>([\s\S]*?)<\/div>/) || [, ""])[1]),
+        location: text((c.match(/勤務地[\s\S]*?<dd>([\s\S]*?)<\/dd>/) || [, ""])[1]).replace(/^アジア\s*日本\s*/, ""),
+        career: text((c.match(/job-card__tags">([\s\S]*?)<\/div>/) || [, ""])[1]).replace(/★\s*/g, ""),
+        types: ["new", ...types(title).filter(t => t !== "new")], url: `https://www.daijob.com/jobs/detail/${id}` });
+    }
+  }
+  return out;
+}
+
+async function wantedly() {
+  // 로그인 없이는 채용 형태 필터가 동작하지 않아 일반 목록에서 신졸·인턴만 고름
+  const kind = { NEWGRAD: "new", INTERNSHIP: "intern" };
+  const out = [], seen = new Set();
+  for (let page = 1; page <= 5; page++) {
+    const h = await get(`https://www.wantedly.com/projects?new=true&page=${page}&order=mixed`, { headers: { "accept-language": "ja" } });
+    const st = JSON.parse((h.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/) || [, "{}"])[1]).props?.pageProps?.__apollo?.graphqlGatewayInitialState || {};
+    for (const p of Object.values(st)) {
+      if (p.__typename !== "JobPost" || seen.has(p.id)) continue;
+      seen.add(p.id);
+      const t = [...new Set((p.hiringTypes || []).map(h => kind[h.type]).filter(Boolean))];
+      if (!t.length) continue;
+      const grad = (p.occupationName || "").match(/(\d\d)卒/);
+      out.push({ site: "Wantedly", loc: "jp", id: "wt" + p.id, title: p.title, company: p.company?.name,
+        tags: [p.occupationName, ...(p.featureTags || []).map(f => f.label)].filter(Boolean).join(", "),
+        career: (p.hiringTypes || []).map(h => h.label).join(", "), year: grad ? 2000 + +grad[1] : undefined,
+        types: t, url: `https://www.wantedly.com/projects/${p.id}` });
+    }
+  }
+  return out;
+}
+
+async function careerticket() {
+  // 기업 목록 첫 화면의 신졸 채용 기업 (설명회 목록은 현재 비어 있음)
+  const h = await get("https://careerticket.jp/company/");
+  const out = [], seen = new Set();
+  for (const m of h.matchAll(/<a href="https:\/\/careerticket\.jp\/company\/(B\d+)\/" class="p-companyTopCard"[\s\S]*?<\/a>/g)) {
+    if (seen.has(m[1])) continue;
+    seen.add(m[1]);
+    const c = m[0], name = text((c.match(/p-companyTopCard__name">([\s\S]*?)<\/h3>/) || [, ""])[1]);
+    out.push({ site: "キャリアチケット", loc: "jp", id: "ck" + m[1], title: name + " 新卒採用", company: name,
+      tags: text((c.match(/p-companyTopCard__category">([\s\S]*?)<\/p>/) || [, ""])[1]),
+      location: text((c.match(/p-companyTopCard__infoText">([\s\S]*?)<\/p>/) || [, ""])[1]),
+      types: ["new"], url: `https://careerticket.jp/company/${m[1]}/` });
+  }
+  return out;
+}
+
 async function build() {
   const sources = { 잡코리아: jobkorea, 자소설닷컴: jasoseol, 링커리어: linkareer, 마이나비코리아: mynavikorea, 월드잡플러스: worldjob,
-    リクナビ: rikunabi, キャリタス就活: careertasu, 外資就活: gaishishukatsu };
+    リクナビ: rikunabi, キャリタス就活: careertasu, 外資就活: gaishishukatsu, キャリアチケット: careerticket, Daijob: daijob, Wantedly: wantedly };
   // 사이트끼리는 동시에, 한 사이트 안에서는 순서대로
   const res = await Promise.allSettled(Object.values(sources).map(f => f()));
   const file = path.join(__dirname, "jobs.json");
