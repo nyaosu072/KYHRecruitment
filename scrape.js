@@ -46,7 +46,7 @@ function entryYear(j, now = new Date()) {
   const t = j.title;
   let m = t.match(/(\d\d)卒/);
   if (m) return 2000 + +m[1];
-  const jpSite = ["キャリタス就活", "リクナビ", "キャリアチケット", "Wantedly"].includes(j.site);
+  const jpSite = ["キャリタス就活", "リクナビ", "キャリアチケット"].includes(j.site);
   // 일본 사이트 제목의 "2026年10月開催"는 행사 날짜라서 연도 숫자는 한국 사이트에서만 봄
   m = !jpSite && t.match(/(?:^|[^\d])(20\d\d|'?\d\d(?=년))\s*년?\s*(?:도\s*)?(상반기|하반기)?/);
   if (m) {
@@ -250,28 +250,6 @@ async function daijob() {
   return out;
 }
 
-async function wantedly() {
-  // 로그인 없이는 채용 형태 필터가 동작하지 않아 일반 목록에서 신졸·인턴만 고름
-  const kind = { NEWGRAD: "new", INTERNSHIP: "intern" };
-  const out = [], seen = new Set();
-  for (let page = 1; page <= 5; page++) {
-    const h = await get(`https://www.wantedly.com/projects?new=true&page=${page}&order=mixed`, { headers: { "accept-language": "ja" } });
-    const st = JSON.parse((h.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/) || [, "{}"])[1]).props?.pageProps?.__apollo?.graphqlGatewayInitialState || {};
-    for (const p of Object.values(st)) {
-      if (p.__typename !== "JobPost" || seen.has(p.id)) continue;
-      seen.add(p.id);
-      const t = [...new Set((p.hiringTypes || []).map(h => kind[h.type]).filter(Boolean))];
-      if (!t.length) continue;
-      const grad = (p.occupationName || "").match(/(\d\d)卒/);
-      out.push({ site: "Wantedly", loc: "jp", id: "wt" + p.id, title: p.title, company: p.company?.name,
-        tags: [p.occupationName, ...(p.featureTags || []).map(f => f.label)].filter(Boolean).join(", "),
-        career: (p.hiringTypes || []).map(h => h.label).join(", "), year: grad ? 2000 + +grad[1] : undefined,
-        types: t, url: `https://www.wantedly.com/projects/${p.id}` });
-    }
-  }
-  return out;
-}
-
 async function careerticket() {
   // 기업 목록 첫 화면의 신졸 채용 기업 (설명회 목록은 현재 비어 있음)
   const h = await get("https://careerticket.jp/company/");
@@ -290,7 +268,7 @@ async function careerticket() {
 
 async function build() {
   const sources = { 잡코리아: jobkorea, 자소설닷컴: jasoseol, 링커리어: linkareer, 마이나비코리아: mynavikorea, 월드잡플러스: worldjob,
-    リクナビ: rikunabi, キャリタス就活: careertasu, 外資就活: gaishishukatsu, キャリアチケット: careerticket, Daijob: daijob, Wantedly: wantedly };
+    リクナビ: rikunabi, キャリタス就活: careertasu, 外資就活: gaishishukatsu, キャリアチケット: careerticket, Daijob: daijob };
   // 사이트끼리는 동시에, 한 사이트 안에서는 순서대로
   const res = await Promise.allSettled(Object.values(sources).map(f => f()));
   const file = path.join(__dirname, "jobs.json");
