@@ -1,4 +1,4 @@
-// 채용공고 수집 → jobs.json. 외부 패키지 없음.
+// 채용공고 수집 → jobs.json. 외부 패키지 없음 (キャリタス就活만 playwright-core 필요, 없으면 그 사이트만 건너뜀).
 //   node scrape.js        공고를 모아 jobs.json에 저장 (GitHub Actions가 몇 시간마다 실행)
 //   node scrape.js serve  jobs.json과 index.html을 http://localhost:3000 으로 미리보기
 // robots.txt를 지키고, 로그인·봇 차단이 있는 사이트(잡플래닛, 슈퍼루키, 네이버 카페, 마이나비 재팬)는 수집하지 않음.
@@ -140,10 +140,32 @@ async function rikunabi() {
   return out;
 }
 
+// キャリタス就活은 AWS WAF가 JavaScript 확인을 거친 브라우저에만 페이지를 내줌(2026-10-14부터).
+// 그래서 이 사이트만 Playwright 헤드리스 브라우저로 염. 설치된 Chrome이 있으면 쓰고, 없으면 Playwright의 Chromium
+async function browserPages(urls) {
+  let pw;
+  try { pw = require("playwright"); } catch { try { pw = require("playwright-core"); } catch { throw new Error("playwright가 설치되어 있지 않음 (npm i --no-save playwright-core)"); } }
+  const b = await pw.chromium.launch({ channel: "chrome" }).catch(() => pw.chromium.launch());
+  try {
+    const page = await b.newPage();
+    // 이미지·글꼴·영상은 받지 않음
+    await page.route("**/*", r => ["image", "font", "media"].includes(r.request().resourceType()) ? r.abort() : r.continue());
+    const out = [];
+    for (const url of urls) {
+      await sleep(1000);
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
+      // 첫 요청은 WAF 확인 후 새로고침되므로 목록이 뜰 때까지 기다림
+      await page.waitForSelector("a.c_panelLink", { timeout: 30000 }).catch(() => {});
+      out.push(await page.content());
+    }
+    return out;
+  } finally { await b.close(); }
+}
+
 async function careertasu() {
   const out = [];
-  for (const kw of ["", "商社", "IT", "メーカー", "金融"]) {
-    const h = await get(`https://job.career-tasu.jp/condition-search/result/${kw ? "?keyword=" + enc(kw) : ""}`);
+  const urls = ["", "商社", "IT", "メーカー", "金融"].map(kw => `https://job.career-tasu.jp/condition-search/result/${kw ? "?keyword=" + enc(kw) : ""}`);
+  for (const h of await browserPages(urls)) {
     for (const c of h.split('<li><a class="c_panelLink').slice(1)) {
       const href = (c.match(/href="(\/corp\/[^"]+)"/) || [])[1];
       if (!href) continue;

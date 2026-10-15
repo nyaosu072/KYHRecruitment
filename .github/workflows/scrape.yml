@@ -16,6 +16,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # キャリタス就活 수집용. 러너에 설치된 Chrome을 쓰므로 브라우저는 따로 받지 않음
+      - run: npm i --no-save --no-package-lock playwright-core@1.56.1
       - run: node scrape.js
       - name: jobs.json 커밋
         run: |

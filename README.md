@@ -2,13 +2,14 @@
 
 잡코리아 · 자소설닷컴 · 링커리어 · 마이나비코리아 · 월드잡플러스(일본) · リクナビ · キャリタス就活 · 外資就活 · キャリアチケット · Daijob 공고를 한 목록으로 보여 주는 정적 사이트.
 
-- `scrape.js` — 공고를 모아 `jobs.json`에 저장 (외부 패키지 없음, Node 18+)
+- `scrape.js` — 공고를 모아 `jobs.json`에 저장 (Node 18+, 외부 패키지 없음. 단 キャリタス就活은 브라우저 확인(AWS WAF)이 있어 `playwright-core`와 Chrome으로 염)
 - `index.html` — `jobs.json`을 읽어 필터링해서 보여 줌
 - `.github/workflows/scrape.yml` — 6시간마다 수집 후 `jobs.json` 커밋
 
 ## 로컬에서
 
 ```
+npm i --no-save playwright-core   # キャリタス就活 수집용 (없으면 그 사이트만 건너뜀)
 node scrape.js          # jobs.json 갱신
 node scrape.js serve    # http://localhost:3000
 ```
