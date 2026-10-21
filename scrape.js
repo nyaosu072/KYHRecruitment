@@ -8,16 +8,17 @@ const path = require("path");
 const UA = { "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130 Safari/537.36" };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// 같은 사이트에 1초 간격으로 순서대로 요청. 연결 오류는 3번까지 다시 시도하고, 실패하면 원인 코드를 남김
+// 같은 사이트에 1초 간격으로 순서대로 요청. 연결 오류는 5번까지(5·10·15·20초 쉬고) 다시 시도하고, 실패하면 원인 코드를 남김
+// GitHub(미국) → 잡코리아 연결이 가끔 시간 초과로 끊겨서 넉넉히 기다림
 async function get(url, opts = {}) {
   for (let i = 1; ; i++) {
-    await sleep(1000 * i);
+    await sleep(i === 1 ? 1000 : 5000 * (i - 1));
     try {
       const r = await fetch(url, { ...opts, headers: { ...UA, ...opts.headers }, signal: AbortSignal.timeout(20000) });
       if (!r.ok) throw Object.assign(new Error(`HTTP ${r.status}`), { final: true });
       return await r.text();
     } catch (e) {
-      if (e.final || i >= 3) throw new Error(`${e.message}${e.cause ? " (" + (e.cause.code || e.cause.message) + ")" : ""} ${url}`);
+      if (e.final || i >= 5) throw new Error(`${e.message}${e.cause ? " (" + (e.cause.code || e.cause.message) + ")" : ""} ${url}`);
     }
   }
 }
