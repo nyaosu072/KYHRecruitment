@@ -4,74 +4,150 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>한일 채용공고 모아보기</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-jp-dynamic-subset.min.css">
 <style>
+/* 흰 카드 + 회색 바탕, 강조색은 파랑 하나 */
 :root{
-  --bg:#f5f6f4; --panel:#fff; --fg:#1d2420; --muted:#5f6b64; --line:#d9dfdb;
-  --accent:#1f6f54; --accent-fg:#fff; --kr:#2b5bb5; --jp:#b8323a; --warn:#b26a00;
-  --sans:"IBM Plex Sans KR",system-ui,sans-serif;
+  --bg:#f2f4f6; --card:#fff; --fill:#f2f4f6; --fill-2:#e5e8eb;
+  --t1:#191f28; --t2:#4e5968; --t3:#8b95a1; --line:#e5e8eb;
+  --blue:#3182f6; --blue-soft:#e8f3ff; --blue-t:#1b64da;
+  --red:#f04452; --red-soft:#ffeeee; --amber-soft:#fff8e6; --amber-t:#b4690e;
+  --shadow:0 1px 3px rgba(0,27,55,.05);
+  --font:"Pretendard Variable","Pretendard JP Variable",-apple-system,BlinkMacSystemFont,system-ui,"Apple SD Gothic Neo","Hiragino Sans",sans-serif;
 }
 @media (prefers-color-scheme:dark){:root{
-  --bg:#141917; --panel:#1c2320; --fg:#e6ebe8; --muted:#9aa7a0; --line:#2e3833;
-  --accent:#4fbf93; --accent-fg:#0d1a14; --kr:#7ea4ee; --jp:#f08088; --warn:#f0b35a; color-scheme:dark}}
-body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 var(--sans)}
-.wrap{max-width:1200px;margin:0 auto;padding:24px 16px 48px}
-h1{font-size:1.5rem;margin:0 0 4px}
-.top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:4px 16px}
-.topright{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;font-size:.85rem;color:var(--muted)}
-.contact{color:var(--muted);text-decoration:none}
-.contact:hover{color:var(--accent);text-decoration:underline}
-.lang a{color:var(--muted);text-decoration:none;padding:0 2px}
-.lang a[aria-current]{color:var(--fg);font-weight:700}
-.lang a:hover{color:var(--accent)}
-.sub{color:var(--muted);margin:0 0 20px}
-.grid{display:grid;grid-template-columns:280px 1fr;gap:24px;align-items:start}
-@media (max-width:800px){.grid{grid-template-columns:1fr}}
-form{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:14px;position:sticky;top:12px;overflow-y:auto;overscroll-behavior:contain;box-sizing:border-box}
-@media (max-width:800px){form{position:static;max-height:none!important;overflow:visible}}
+  --bg:#101013; --card:#1c1c21; --fill:#2c2c35; --fill-2:#3c3c47;
+  --t1:#f2f4f6; --t2:#b0b8c1; --t3:#7e8794; --line:#2c2c35;
+  --blue:#3182f6; --blue-soft:rgba(49,130,246,.18); --blue-t:#6ea8fe;
+  --red:#ff6b77; --red-soft:rgba(240,68,82,.16); --amber-soft:rgba(255,181,71,.12); --amber-t:#ffc266;
+  --shadow:none; color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t1);font:15px/1.6 var(--font);-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+button,input,select{font:inherit;color:inherit;letter-spacing:inherit}
+
+/* 상단 바 */
+.nav{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:saturate(180%) blur(16px);-webkit-backdrop-filter:saturate(180%) blur(16px)}
+.nav-in{max-width:1160px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font-weight:700;font-size:16px;color:var(--t1);text-decoration:none;white-space:nowrap}
+.nav-r{display:flex;align-items:center;gap:14px;min-width:0}
+.langsw{display:inline-flex;background:var(--fill);border-radius:10px;padding:3px}
+.langsw a{padding:4px 10px;border-radius:8px;font-size:13px;font-weight:600;color:var(--t3);text-decoration:none}
+.langsw a[aria-current]{background:var(--card);color:var(--t1);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.contact{font-size:13px;color:var(--t3);text-decoration:none;white-space:nowrap}
+.contact:hover{color:var(--blue)}
+@media (max-width:560px){.contact .mail{display:none}}
+
+.wrap{max-width:1160px;margin:0 auto;padding:8px 20px 80px}
+.hero{padding:28px 0 28px}
+h1{font-size:clamp(26px,4vw,34px);line-height:1.3;font-weight:700;letter-spacing:-.03em;margin:0 0 10px;text-wrap:balance}
+.sub{font-size:16px;color:var(--t2);margin:0 0 18px;max-width:58ch}
+.stats{display:flex;flex-wrap:wrap;gap:8px}
+.stat{background:var(--card);border-radius:12px;padding:8px 14px;font-size:13px;color:var(--t2);box-shadow:var(--shadow)}
+.stat b{color:var(--t1);font-weight:700;font-variant-numeric:tabular-nums;margin-left:4px}
+
+.grid{display:grid;grid-template-columns:280px minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+
+/* 필터 */
+form{background:var(--card);border-radius:20px;padding:20px;display:grid;gap:22px;position:sticky;top:68px;overflow-y:auto;overscroll-behavior:contain;box-shadow:var(--shadow);scrollbar-width:thin}
+@media (max-width:860px){form{position:static;max-height:none!important;overflow:visible}}
 .fhead{display:flex;justify-content:space-between;align-items:center}
-.fhead b{font-size:.95rem}
-.fhead button{font:inherit;font-size:.82rem;padding:3px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);cursor:pointer}
-.fhead button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.fhead b{font-size:17px;font-weight:700}
+.fhead button{font-size:13px;font-weight:600;padding:6px 12px;border:0;border-radius:10px;background:var(--fill);color:var(--t2);cursor:pointer}
+.fhead button:hover{background:var(--fill-2)}
 form.folded>:not(.fhead){display:none}
 /* 접으면 왼쪽 칸을 버튼 크기로 줄이고 공고 목록을 넓게 */
 .grid.folded{grid-template-columns:auto minmax(0,1fr)}
-form.folded{padding:6px;overflow:visible;max-height:none!important}
+form.folded{padding:8px;overflow:visible;max-height:none!important}
 form.folded .fhead{justify-content:center}
 form.folded .fhead b{display:none}
-@media (max-width:800px){.grid.folded{grid-template-columns:1fr} form.folded{justify-self:start}}
+@media (max-width:860px){.grid.folded{grid-template-columns:minmax(0,1fr)} form.folded{justify-self:start}}
 fieldset{border:0;margin:0;padding:0;min-width:0}
-legend,.lbl{display:block;font-size:.75rem;font-weight:700;letter-spacing:.06em;color:var(--muted);padding:0;margin-bottom:6px}
+legend,.lbl{display:block;font-size:13px;font-weight:600;color:var(--t3);padding:0;margin:0 0 10px}
 .seg{display:flex;flex-wrap:wrap;gap:6px}
 .seg input{position:absolute;opacity:0;pointer-events:none}
-.seg label{border:1px solid var(--line);border-radius:999px;padding:4px 11px;cursor:pointer;font-size:.88rem}
-.seg input:checked+label{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
-.seg input:focus-visible+label{outline:2px solid var(--accent);outline-offset:2px}
-select,input[type=text]{width:100%;box-sizing:border-box;font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
-.bar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;color:var(--muted);font-size:.9rem}
-.err{color:var(--warn);font-size:.85rem;margin:0 0 10px}
-ul.jobs{list-style:none;margin:0;padding:0;display:grid;gap:8px}
-.job{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:grid;gap:4px;min-width:0}
-.job a{color:var(--fg);font-weight:600;text-decoration:none}
-.job a:hover{text-decoration:underline}
-.job a:focus-visible{outline:2px solid var(--accent)}
-.meta{display:flex;flex-wrap:wrap;gap:4px 10px;color:var(--muted);font-size:.85rem}
-.tag{font-size:.72rem;font-weight:700;padding:1px 7px;border-radius:4px;border:1px solid currentColor;white-space:nowrap}
-.kr{color:var(--kr)} .jp{color:var(--jp)} .dl{color:var(--warn)}
-.empty{color:var(--muted);padding:40px 0;text-align:center}
-.pager{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:16px}
-.pager button{min-width:36px;padding:6px 10px;font:inherit;font-size:.9rem;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--fg);cursor:pointer}
-.pager button[aria-current]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
-.pager button:disabled{opacity:.4;cursor:default}
-.pager button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.seg label{background:var(--fill);color:var(--t2);border-radius:10px;padding:7px 12px;cursor:pointer;font-size:14px;font-weight:500;transition:background .15s,color .15s;user-select:none}
+.seg label:hover{background:var(--fill-2)}
+.seg input:checked+label{background:var(--blue-soft);color:var(--blue-t);font-weight:600}
+.seg input:focus-visible+label{outline:2px solid var(--blue);outline-offset:2px}
+select{width:100%;appearance:none;background:var(--fill) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%238b95a1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 14px center;border:0;border-radius:12px;padding:11px 36px 11px 14px;font-size:15px;cursor:pointer}
+
+/* 검색 줄 */
+.searchbar{display:flex;gap:8px;margin-bottom:14px}
+.search{flex:1;min-width:0;position:relative}
+.search svg{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--t3);pointer-events:none}
+.search input{width:100%;height:52px;border:0;border-radius:16px;background:var(--card);padding:0 16px 0 46px;font-size:16px;box-shadow:var(--shadow)}
+.search input::placeholder{color:var(--t3)}
+.searchbar select{flex:none;width:auto;height:52px;border-radius:16px;background-color:var(--card);box-shadow:var(--shadow);font-size:14px;font-weight:600}
+@media (max-width:560px){
+  .searchbar{flex-wrap:wrap}
+  .search{flex-basis:100%}
+  .searchbar select{height:38px;border-radius:12px;margin-left:auto;font-size:13px}
+}
+.bar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:6px;margin:0 4px 12px}
+.count{font-size:15px;font-weight:700}
+.fetched{font-size:13px;color:var(--t3)}
+.err{background:var(--amber-soft);color:var(--amber-t);border-radius:14px;padding:12px 14px;font-size:13px;margin:0 0 12px}
+.err[hidden]{display:none}
+
+/* 공고 카드 */
+ul.jobs{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.job{position:relative;background:var(--card);border-radius:18px;padding:20px 22px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 16px;box-shadow:var(--shadow);transition:background .15s,transform .15s}
+.job:hover{background:color-mix(in srgb,var(--card) 92%,var(--fill))}
+.job:active{transform:scale(.995)}
+.co{grid-column:1;display:flex;gap:8px;align-items:baseline;font-size:14px;color:var(--t2);font-weight:600;min-width:0}
+.co span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.co .site{font-weight:500;color:var(--t3);flex-shrink:0}
+.title{grid-column:1;font-size:17px;font-weight:600;line-height:1.45;color:var(--t1);text-decoration:none;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.title::after{content:"";position:absolute;inset:0;border-radius:18px}
+.title:focus-visible{outline:0}
+.job:has(.title:focus-visible){outline:2px solid var(--blue);outline-offset:2px}
+.chips{grid-column:1;display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;align-items:center}
+.chip{font-size:12px;font-weight:600;padding:3px 8px;border-radius:6px;background:var(--fill);color:var(--t2);white-space:nowrap}
+.chip.kr{background:var(--blue-soft);color:var(--blue-t)}
+.chip.jp{background:var(--red-soft);color:var(--red)}
+.chip.guess{font-weight:500;color:var(--t3)}
+.where{font-size:13px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.side{grid-column:2;grid-row:1/4;align-self:center;text-align:right}
+.dday{display:inline-block;font-size:13px;font-weight:700;padding:6px 10px;border-radius:10px;background:var(--fill);color:var(--t2);white-space:nowrap;font-variant-numeric:tabular-nums}
+.dday.soon{background:var(--red-soft);color:var(--red)}
+@media (max-width:560px){
+  .job{grid-template-columns:minmax(0,1fr);padding:18px}
+  .side{grid-column:1;grid-row:auto;text-align:left;order:-1;margin-bottom:-2px}
+  .side:empty{display:none}
+  .dday{padding:3px 8px;font-size:12px}
+}
+.empty{background:var(--card);border-radius:18px;padding:56px 20px;text-align:center;color:var(--t3)}
+.empty b{display:block;color:var(--t1);font-size:17px;margin-bottom:4px}
+
+.pager{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;margin-top:24px}
+.pager button{min-width:40px;height:40px;padding:0 10px;font-size:15px;font-weight:600;border:0;border-radius:12px;background:transparent;color:var(--t2);cursor:pointer;font-variant-numeric:tabular-nums}
+.pager button:hover:not(:disabled){background:var(--card)}
+.pager button[aria-current]{background:var(--blue);color:#fff}
+.pager button:disabled{opacity:.3;cursor:default}
+.pager span{align-self:center;color:var(--t3);padding:0 2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
+<header class="nav"><div class="nav-in">
+  <a class="brand" href="./" data-t="brand"></a>
+  <div class="nav-r">
+    <span class="langsw"><a href="?lang=ko" data-lang="ko">한국어</a><a href="?lang=en" data-lang="en">English</a></span>
+    <a class="contact" href="mailto:o_hyun2@naver.com"><span data-t="contact"></span><span class="mail"> o_hyun2@naver.com</span></a>
+  </div>
+</div></header>
+
 <div class="wrap">
-  <div class="top"><h1 data-t="title"></h1>
-    <span class="topright"><span class="lang"><a href="?lang=ko" data-lang="ko">한국어</a> | <a href="?lang=en" data-lang="en">English</a></span>
-    <a class="contact" href="mailto:o_hyun2@naver.com"><span data-t="contact"></span> o_hyun2@naver.com</a></span></div>
-  <p class="sub" data-t="sub"></p>
+  <section class="hero">
+    <h1></h1>
+    <p class="sub" data-t="sub"></p>
+    <div class="stats" id="stats"></div>
+  </section>
+
   <div class="grid">
     <form id="f" onsubmit="event.preventDefault()">
       <div class="fhead"><b data-t="filter"></b><button type="button" id="fold" aria-expanded="true" aria-controls="f"></button></div>
@@ -80,12 +156,15 @@ ul.jobs{list-style:none;margin:0;padding:0;display:grid;gap:8px}
       <fieldset><legend data-t="year"></legend><div class="seg" id="year"></div></fieldset>
       <div><label class="lbl" for="ind" data-t="ind"></label><select id="ind"></select></div>
       <div><label class="lbl" for="job" data-t="job"></label><select id="job"></select></div>
-      <div><label class="lbl" for="kw" data-t="kw"></label><input type="text" id="kw"></div>
       <fieldset><legend data-t="site"></legend><div class="seg" id="site"></div></fieldset>
-      <div><label class="lbl" for="sort" data-t="sort"></label><select id="sort"></select></div>
     </form>
     <main>
-      <div class="bar"><span id="count"></span><span id="fetched"></span></div>
+      <div class="searchbar">
+        <label class="search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <input type="search" id="kw" autocomplete="off"></label>
+        <select id="sort"></select>
+      </div>
+      <div class="bar"><span class="count" id="count"></span><span class="fetched" id="fetched"></span></div>
       <p class="err" id="err" hidden></p>
       <ul class="jobs" id="out"></ul>
       <nav class="pager" id="pager"></nav>
@@ -100,18 +179,24 @@ if(LANG!=="en")LANG="ko";
 const EN=LANG==="en";
 
 const T={
-  ko:{title:"한일 채용공고 모아보기",sub:"한국·일본 채용 사이트 10곳의 공고를 한 목록으로 보여 줘요.",contact:"문의사항",filter:"필터",fold:"접기",unfold:"펼치기",
-    loc:"근무지",type:"채용 구분",year:"입사년도",ind:"업종",job:"직무",kw:"키워드 (회사명·제목)",kwPh:"예: 삼성, 商社, 일본어",site:"사이트",sort:"정렬",
-    sortSite:"사이트 순",sortDl:"마감 임박순",all:"전체",loading:"불러오는 중…",count:n=>`공고 ${n}건`,fetched:d=>"마지막 수집 "+d.toLocaleString("ko"),
-    err:s=>"일부 사이트를 못 불러왔어요: "+s,loadErr:m=>`공고 목록(jobs.json)을 불러오지 못했어요. (${m})`,empty:"조건에 맞는 공고가 없어요. 필터를 줄여 보세요.",
-    yearLbl:y=>y+"년",start:(y,g)=>`${y}년 입사${g?" (추정)":""}`,guessTip:"제목에 연도가 없어 공고 시기로 추정했어요",pages:"페이지",prev:"이전 페이지",next:"다음 페이지",
+  ko:{brand:"한일 채용공고",title:"한국과 일본의 채용공고를\n한 곳에서 찾아보세요",sub:"국내 채용 사이트와 일본 취업 사이트의 공고를 모아 6시간마다 새로 정리해요.",contact:"문의",filter:"필터",fold:"접기",unfold:"펼치기",
+    loc:"근무지",type:"채용 구분",year:"입사년도",ind:"업종",job:"직무",kwPh:"회사명이나 공고 제목으로 검색",site:"사이트",
+    sortSite:"사이트순",sortDl:"마감 임박순",all:"전체",loading:"공고를 불러오고 있어요",count:n=>`공고 ${n.toLocaleString()}개`,fetched:d=>`${d.getMonth()+1}월 ${d.getDate()}일 ${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")} 업데이트`,
+    statJobs:"전체 공고",statSites:"사이트",statEvery:"업데이트",every:"6시간마다",
+    err:s=>"일부 사이트의 새 공고를 받지 못해 이전 공고를 보여 주고 있어요: "+s,loadErr:m=>`공고 목록을 불러오지 못했어요. 잠시 뒤 새로고침해 주세요. (${m})`,
+    emptyT:"조건에 맞는 공고가 없어요",empty:"필터를 하나씩 풀어 보세요.",
+    yearLbl:y=>y+"년",start:(y,g)=>`${y}년 입사${g?" 추정":""}`,guessTip:"제목에 연도가 없어 공고 시기로 추정했어요",pages:"페이지",prev:"이전 페이지",next:"다음 페이지",
+    dday:n=>n===0?"오늘 마감":`D-${n}`,until:d=>`~${+d.slice(5,7)}/${+d.slice(8)}`,
     loc_:{kr:"한국",jp:"일본",ovs:"해외"},types:{new:"신입",intern:"인턴",exp:"경력",contract:"계약직"}},
-  en:{title:"Japan Job Listings",sub:"New-grad jobs, internships and info sessions from Japanese job sites in one list. Updated every 6 hours.",contact:"Contact",filter:"Filters",fold:"Hide",unfold:"Show",
-    loc:"Location",type:"Type",year:"Start year",ind:"Industry",job:"Job type",kw:"Keyword (company or title)",kwPh:"e.g. 商社, Sony, エンジニア",site:"Sites",sort:"Sort",
-    sortSite:"By site",sortDl:"Deadline soonest",all:"All",loading:"Loading…",count:n=>`${n} listings`,fetched:d=>"Last updated "+d.toLocaleString("en"),
-    err:s=>"Some sites could not be updated, showing earlier listings: "+s,loadErr:m=>`Could not load the listings (${m}).`,empty:"No listings match these filters. Try removing some.",
+  en:{brand:"Japan Jobs",title:"Find jobs in Japan,\nall in one place",sub:"New-grad jobs, internships and info sessions from Japanese job sites, refreshed every 6 hours.",contact:"Contact",filter:"Filters",fold:"Hide",unfold:"Show",
+    loc:"Location",type:"Type",year:"Start year",ind:"Industry",job:"Job type",kwPh:"Search by company or title",site:"Sites",
+    sortSite:"By site",sortDl:"Deadline soonest",all:"All",loading:"Loading listings",count:n=>`${n.toLocaleString("en")} listings`,fetched:d=>"Updated "+d.toLocaleString("en",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}),
+    statJobs:"Listings",statSites:"Sites",statEvery:"Refresh",every:"Every 6h",
+    err:s=>"Couldn't refresh some sites, showing earlier listings: "+s,loadErr:m=>`Couldn't load the listings. Please refresh in a moment. (${m})`,
+    emptyT:"No listings match",empty:"Try removing a filter or two.",
     yearLbl:y=>String(y),start:(y,g)=>`Start ${y}${g?" (est.)":""}`,guessTip:"No year in the title, estimated from the posting date",pages:"Pages",prev:"Previous page",next:"Next page",
-    loc_:{kr:"Korea",jp:"Japan",ovs:"Overseas"},types:{new:"New grad",intern:"Internship / event",exp:"Mid-career",contract:"Contract"}},
+    dday:n=>n===0?"Closes today":`${n}d left`,until:d=>`Until ${+d.slice(5,7)}/${+d.slice(8)}`,
+    loc_:{kr:"Korea",jp:"Japan",ovs:"Overseas"},types:{new:"New grad",intern:"Internship",exp:"Mid-career",contract:"Contract"}},
 }[LANG];
 
 const NOW=new Date().getFullYear();
@@ -131,10 +216,11 @@ const $=id=>document.getElementById(id);
 const esc=t=>String(t??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 // 정적 문구 채우기
-document.documentElement.lang=LANG; document.title=T.title;
+document.documentElement.lang=LANG; document.title=EN?"Japan Job Listings":"한일 채용공고 모아보기";
 document.querySelectorAll("[data-t]").forEach(el=>el.textContent=T[el.dataset.t]);
+document.querySelector("h1").innerHTML=esc(T.title).replace("\n","<br>");
 document.querySelectorAll("[data-lang]").forEach(a=>{ if(a.dataset.lang===LANG)a.setAttribute("aria-current","true"); });
-$("kw").placeholder=T.kwPh; $("count").textContent=T.loading; $("pager").setAttribute("aria-label",T.pages);
+$("kw").placeholder=T.kwPh; $("kw").setAttribute("aria-label",T.kwPh); $("count").textContent=T.loading; $("pager").setAttribute("aria-label",T.pages);
 $("sort").innerHTML=`<option value="">${T.sortSite}</option><option value="dl">${T.sortDl}</option>`;
 if(EN)$("locbox").hidden=true;
 
@@ -153,12 +239,14 @@ async function load(){
     const r=await fetch("jobs.json",{cache:"no-cache"});
     if(!r.ok)throw new Error(r.status);
     const d=await r.json();
-    jobs=d.jobs.filter(j=>SITES.includes(j.site)&&(!EN||j.loc==="jp"));
+    // 마감이 지난 공고는 뺌
+    jobs=d.jobs.filter(j=>SITES.includes(j.site)&&(!EN||j.loc==="jp")&&(!j.deadline||daysLeft(j.deadline)!==null));
     $("fetched").textContent=T.fetched(new Date(d.fetched));
-    // 오류 문구는 "사이트명: 내용" 형식. 영어판은 해당 사이트 이름만 보여 줌
-    const errs=d.errors.filter(e=>SITES.includes(e.split(":")[0]));
+    $("stats").innerHTML=[[T.statJobs,jobs.length.toLocaleString()],[T.statSites,SITES.length],[T.statEvery,T.every]].map(([k,v])=>`<span class="stat">${k}<b>${v}</b></span>`).join("");
+    // 오류 문구는 "사이트명: 내용" 형식. 사이트 이름만 보여 줌
+    const errs=d.errors.map(e=>e.split(":")[0]).filter(s=>SITES.includes(s));
     $("err").hidden=!errs.length;
-    $("err").textContent=T.err(EN?errs.map(e=>siteName(e.split(":")[0])).join(", "):errs.join(" / "));
+    $("err").textContent=T.err(errs.map(siteName).join(", "));
   }catch(e){ $("err").hidden=false; $("err").textContent=T.loadErr(e.message); }
   render();
 }
@@ -167,6 +255,8 @@ async function load(){
 function matchWords(j,words){ if(!words.length)return true; const s=(j.title+" "+j.company+" "+(j.tags||"")).toLowerCase(); return words.some(w=>s.includes(w.toLowerCase())); }
 // 입사년도는 scrape.js가 계산한 j.year. 제목에 연도가 없으면 추정값(j.yearGuess)
 function matchYear(j,y){ return y=="all"||j.year==y; }
+// 마감까지 남은 날(한국 시간 기준). 지났으면 null
+function daysLeft(d){ if(!d)return null; const n=Math.ceil((new Date(d+"T23:59:59+09:00")-Date.now())/864e5)-1; return n<0?null:n; }
 
 function render(){
   const loc=EN?"all":pick("loc"), type=pick("type"), year=pick("year"), kw=$("kw").value.trim().toLowerCase();
@@ -181,13 +271,21 @@ function render(){
   show();
 }
 
+function card(j){
+  const n=daysLeft(j.deadline);
+  const dd=n==null?"":`<span class="dday${n<=7?" soon":""}">${n<=7?T.dday(n):T.until(j.deadline)}</span>`;
+  const where=[j.location,j.career].filter(Boolean).join(" · ");
+  return `<li class="job">
+    <div class="co"><span>${esc(j.company||"")}</span><span class="site">${esc(siteName(j.site))}</span></div>
+    <a class="title" href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>
+    <div class="chips">${EN?"":`<span class="chip ${j.loc}">${T.loc_[j.loc]}</span>`}${j.types.map(t=>`<span class="chip">${T.types[t]}</span>`).join("")}${j.year?`<span class="chip${j.yearGuess?" guess":""}"${j.yearGuess?` title="${T.guessTip}"`:""}>${T.start(j.year,j.yearGuess)}</span>`:""}${where?`<span class="where">${esc(where)}</span>`:""}</div>
+    <div class="side">${dd}</div></li>`;
+}
+
 function show(){
   const pages=Math.max(1,Math.ceil(list.length/PER));
-  $("out").innerHTML=list.length?list.slice((page-1)*PER,page*PER).map(j=>`<li class="job">
-    <div class="meta">${EN?"":`<span class="tag ${j.loc}">${T.loc_[j.loc]}</span>`}<span class="tag">${esc(siteName(j.site))}</span>${j.types.map(t=>`<span class="tag">${T.types[t]}</span>`).join("")}${j.year?`<span class="tag"${j.yearGuess?` title="${T.guessTip}"`:""}>${T.start(j.year,j.yearGuess)}</span>`:""}${j.deadline?`<span class="tag dl">~${esc(j.deadline)}</span>`:""}</div>
-    <a href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>
-    <div class="meta">${[j.company,j.location,j.career,j.tags].filter(Boolean).map(x=>`<span>${esc(x)}</span>`).join("")}</div></li>`).join("")
-    :`<li class="empty">${T.empty}</li>`;
+  $("out").innerHTML=list.length?list.slice((page-1)*PER,page*PER).map(card).join("")
+    :(jobs.length?`<li class="empty"><b>${T.emptyT}</b>${T.empty}</li>`:"");
   // 현재 페이지 앞뒤 2쪽 + 처음·끝 쪽만 번호로 보여 줌
   const nums=[...new Set([1,page-2,page-1,page,page+1,page+2,pages])].filter(n=>n>=1&&n<=pages).sort((a,b)=>a-b);
   const btn=(n,t,dis)=>`<button type="button" data-p="${n}"${dis?" disabled":""}${n==page&&!t?' aria-current="page"':""}${t?` aria-label="${t=="‹"?T.prev:T.next}"`:""}>${t||n}</button>`;
@@ -196,11 +294,13 @@ function show(){
     +btn(page+1,"›",page==pages);
 }
 
-$("pager").addEventListener("click",e=>{const p=e.target.closest("button")?.dataset.p; if(!p)return; page=+p; show(); $("count").scrollIntoView({behavior:"smooth"});});
+$("pager").addEventListener("click",e=>{const p=e.target.closest("button")?.dataset.p; if(!p)return; page=+p; show(); $("count").scrollIntoView({behavior:"smooth",block:"center"});});
 $("f").addEventListener("input",render);
+$("kw").addEventListener("input",render);
+$("sort").addEventListener("input",render);
 
-// 필터 칸 높이를 지금 화면에 보이는 영역에 맞춤 (페이지를 내리기 전에도 아래쪽이 잘리지 않게)
-function fitFilter(){ const f=$("f"); f.style.maxHeight=(innerHeight-Math.max(12,f.getBoundingClientRect().top)-12)+"px"; }
+// 필터 칸 높이를 지금 화면에 보이는 영역에 맞춤 (상단 바 아래부터, 페이지를 내리기 전에도 아래쪽이 잘리지 않게)
+function fitFilter(){ const f=$("f"); f.style.maxHeight=(innerHeight-Math.max(68,f.getBoundingClientRect().top)-16)+"px"; }
 addEventListener("scroll",fitFilter,{passive:true}); addEventListener("resize",fitFilter); fitFilter();
 
 // 필터 접기/펼치기 (브라우저에 기억)
