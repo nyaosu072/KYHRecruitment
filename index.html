@@ -223,9 +223,9 @@ const T={
 
 const NOW=new Date().getFullYear();
 // 영어판은 일본 채용 사이트만
-const JP_SITES=["マイナビ","リクナビ","キャリタス就活","外資就活","キャリアチケット","Daijob"];
+const JP_SITES=["マイナビ","リクナビ","ワンキャリア","キャリタス就活","外資就活","キャリアチケット","Daijob"];
 const SITES=EN?JP_SITES:["잡코리아","자소설닷컴","링커리어","마이나비코리아","월드잡플러스",...JP_SITES];
-const SITE_EN={"マイナビ":"Mynavi","リクナビ":"Rikunabi","キャリタス就活":"Career-tasu","外資就活":"Gaishi Shukatsu","キャリアチケット":"Career Ticket"};
+const SITE_EN={"マイナビ":"Mynavi","ワンキャリア":"ONE CAREER","リクナビ":"Rikunabi","キャリタス就活":"Career-tasu","外資就活":"Gaishi Shukatsu","キャリアチケット":"Career Ticket"};
 const siteName=s=>EN?SITE_EN[s]||s:s;
 const LOC=[["all",T.all],["kr",T.loc_.kr],["jp",T.loc_.jp]];
 const TYPE=[["all",T.all],...["new","intern","exp","contract"].map(k=>[k,T.types[k]])];

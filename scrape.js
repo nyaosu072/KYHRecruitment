@@ -350,9 +350,53 @@ async function mynaviCrawl(limit) {
   console.log(`마이나비: 기업 ${done}곳, 공고 ${posts}건 / 누적 기업 ${Object.keys(db.corps).length}곳 / 다음 위치 ${db.next}/${corps.length}`);
 }
 
+// ワンキャリア: 목록 API는 외부 접근을 막아 쓰지 않음. 공개 사이트맵의 공고 주소와 상세 페이지만 받음.
+// 로그인 화면으로 넘어가는 공고, 募集終了 공고는 건너뜀. 마감일은 페이지에 명확한 값이 없어 비워 둠.
+function parseOnecareer(h, finalUrl, id) {
+  const kind = (finalUrl.match(/\/events\/(selection|internship|seminar|gosetsu)\//) || [])[1];
+  if (!kind) return null; // 로그인 화면 등
+  const body = text(h.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, " "));
+  if (/募集終了|受付終了|掲載終了|募集は終了/.test(body)) return null;
+  const lds = [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map(m => { try { return JSON.parse(m[1]); } catch { return null; } });
+  const e = lds.find(x => x && x["@type"] === "Event");
+  if (!e || !e.name) return null;
+  const grad = body.match(/(20\d\d)年卒/);
+  const start = (String(e.startDate || "").match(/(20\d\d)[-/](\d\d)[-/](\d\d)/) || []).slice(1).join("-");
+  return { site: "ワンキャリア", loc: "jp", id: "oc" + id, title: e.name.trim(), company: (body.match(/の募集一覧 ＞ (.{1,60}?) ＞/) || [])[1] || "",
+    career: { selection: "本選考", internship: "インターン", seminar: "説明会・セミナー", gosetsu: "合説・座談会" }[kind],
+    year: grad ? +grad[1] : undefined, start: start || undefined, types: kind === "selection" ? ["new"] : ["intern"],
+    url: `https://www.onecareer.jp/events/${kind}/${id}` };
+}
+
+async function onecareer() {
+  const file = path.join(__dirname, "onecareer.json");
+  let db = {};
+  try { db = JSON.parse(fs.readFileSync(file, "utf8")); } catch {}
+  const zlib = require("zlib");
+  const r = await fetch("https://www.onecareer.jp/sitemaps/sitemap_events.xml.gz", { headers: UA, signal: AbortSignal.timeout(30000) });
+  if (!r.ok) throw new Error(`사이트맵 HTTP ${r.status}`);
+  const xml = zlib.gunzipSync(Buffer.from(await r.arrayBuffer())).toString();
+  const urls = [...xml.matchAll(/<url>([\s\S]*?)<\/url>/g)].map(m => [(m[1].match(/\/events\/(\d+)<\/loc>/) || [])[1], (m[1].match(/<lastmod>([^<]+)/) || [])[1]]).filter(u => u[0]);
+  const live = new Set(urls.map(u => u[0]));
+  for (const id of Object.keys(db)) if (!live.has(id)) delete db[id];
+  const today = new Date().toISOString().slice(0, 10), stale = new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10);
+  // 새 공고·바뀐 공고·14일 지난 공고를 최근 갱신순으로 한 번에 150건
+  const todo = urls.filter(([id, lm]) => !db[id] || db[id].lastmod !== lm || db[id].checked < stale).sort((a, b) => String(b[1]).localeCompare(String(a[1]))).slice(0, 150);
+  for (const [id, lastmod] of todo) {
+    await sleep(1500);
+    let res;
+    try { res = await fetch(`https://www.onecareer.jp/events/${id}`, { headers: UA, signal: AbortSignal.timeout(20000) }); } catch { continue; }
+    if (res.status === 403 || res.status === 429 || res.headers.get("x-amzn-waf-action")) break; // 거부 응답이면 더 요청하지 않음
+    if (!res.ok) continue;
+    db[id] = { lastmod, checked: today, item: parseOnecareer(await res.text(), res.url, id) };
+  }
+  fs.writeFileSync(file, JSON.stringify(db));
+  return Object.values(db).map(d => d.item).filter(j => j && !(j.start && j.start < today));
+}
+
 async function build() {
   const sources = { 잡코리아: jobkorea, 자소설닷컴: jasoseol, 링커리어: linkareer, 마이나비코리아: mynavikorea, 월드잡플러스: worldjob,
-    リクナビ: rikunabi, キャリタス就活: careertasu, 外資就活: gaishishukatsu, キャリアチケット: careerticket, Daijob: daijob };
+    リクナビ: rikunabi, キャリタス就活: careertasu, 外資就活: gaishishukatsu, キャリアチケット: careerticket, Daijob: daijob, ワンキャリア: onecareer };
   // 사이트끼리는 동시에, 한 사이트 안에서는 순서대로
   const res = await Promise.allSettled(Object.values(sources).map(f => f()));
   const file = path.join(__dirname, "jobs.json");
@@ -429,6 +473,13 @@ if (process.argv[2] === "test") {
     [1, "mn2-L7v1q", "【2DAYS】アクチュアリーコース", "日本生命保険相互会社", "生命保険", "東京", "仕事体験", "2027-01-03"]);
   assert.equal(mn[0].url, "https://job.mynavi.jp/28/pc/corpinfo/displayInternship/index?corpId=2&optNo=L7v1q");
   console.log("mynavi ok");
+  const page = (name, extra = "") => `<script type="application/ld+json">{"@type":"Event","name":"${name}","startDate":"2026/11/05 14:00"}</script><p>本選考の募集一覧 ＞ 3WELL ＞ x 2028年卒 ${extra}</p>`;
+  const oc = parseOnecareer(page("【28卒】説明会"), "https://www.onecareer.jp/events/internship/102623", "102623");
+  assert.deepEqual([oc.title, oc.company, oc.year, oc.start, oc.types[0], oc.url], ["【28卒】説明会", "3WELL", 2028, "2026-11-05", "intern", "https://www.onecareer.jp/events/internship/102623"]);
+  assert.equal(parseOnecareer(page("x"), "https://www.onecareer.jp/events/selection/1", "1").types[0], "new");
+  assert.equal(parseOnecareer(page("x", "募集終了"), "https://www.onecareer.jp/events/selection/1", "1"), null);
+  assert.equal(parseOnecareer("<p>login</p>", "https://id.onecareer.jp/users/sign_in", "1"), null);
+  console.log("onecareer ok");
 } else if (process.argv[2] === "mynavi") mynaviCrawl(+process.argv[3] || 150).catch(e => { console.error(e.message); process.exit(1); });
 else if (process.argv[2] === "serve") serve();
 else build().catch(e => { console.error(e.message); process.exit(1); });
