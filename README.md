@@ -26,4 +26,4 @@ node scrape.js serve    # http://localhost:3000
 
 ## 수집하지 않는 사이트
 
-잡플래닛(봇 차단), 슈퍼루키(회원 전용), 네이버 카페(로그인 필요), 마이나비 재팬(robots.txt가 검색 결과 수집 금지), ONE CAREER(공고 API가 외부 접근 차단, 목록 페이지 noindex).
+잡플래닛(봇 차단), 슈퍼루키(회원 전용), 네이버 카페(로그인 필요), ONE CAREER(공고 API가 외부 접근 차단, 목록 페이지 noindex).

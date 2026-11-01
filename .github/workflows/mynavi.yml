@@ -1,0 +1,32 @@
+name: 마이나비 수집
+
+# robots.txt의 Crawl-delay 120을 지켜 150곳을 받는 데 5시간 걸림. 받은 공고는 mynavi.json에 쌓이고 "공고 수집"이 합침
+on:
+  schedule:
+    - cron: "30 1,13 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency: mynavi
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scrape.js mynavi 150
+      - name: mynavi.json 커밋
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mynavi.json
+          git diff --cached --quiet && exit 0
+          git commit -m "마이나비 공고 갱신 $(date -u +%F' '%H:%M)"
+          git pull --rebase
+          git push

@@ -296,6 +296,60 @@ async function careerticket() {
   return out;
 }
 
+// マイナビ: robots.txt가 "?" 주소를 막고 Crawl-delay 120을 요구함. 그래서 사이트맵에 공개된 corpN/is.html만 120초 간격으로 받음.
+// 한 번에 다 못 받으므로 mynavi.json에 쌓아 두고 다음 실행에서 이어 받음. ("?" 주소는 사용자가 누르는 링크로만 씀)
+const MYNAVI_DELAY = 120000, MYNAVI_YEAR = 2028;
+
+function parseMynavi(h, corp) {
+  const company = text((h.match(/<title>([\s\S]*?)のインターンシップ/) || [, ""])[1]);
+  const industry = (text(h).match(/業種\s+(\S+)/) || [])[1] || "";
+  const out = [];
+  for (const sec of h.split(/class="internList courseList"/).slice(1)) {
+    const kind = text((sec.match(/<h2[^>]*>([\s\S]*?)<\/h2>/) || [, ""])[1]);
+    for (const c of sec.split('<div class="course">').slice(1)) {
+      const a = c.match(/<h4>\s*<a href="([^"]*optNo=([^"&]+)[^"]*)"[^>]*>([\s\S]*?)<\/a>/);
+      if (!a) continue;
+      const field = name => text((c.match(new RegExp(`<dt>${name}</dt>\\s*<dd>([\\s\\S]*?)</dd>`)) || [, ""])[1]);
+      const d = field("応募締切").match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+      out.push({ site: "マイナビ", loc: "jp", id: `mn${corp}-${a[2]}`, title: text(a[3]), company, tags: industry,
+        location: field("開催地域"), career: kind, year: MYNAVI_YEAR, types: ["intern"],
+        deadline: d ? `${d[1]}-${d[2].padStart(2, "0")}-${d[3].padStart(2, "0")}` : undefined,
+        url: "https://job.mynavi.jp" + a[1].replace(/&amp;/g, "&") });
+    }
+  }
+  return out;
+}
+
+async function mynaviCrawl(limit) {
+  const file = path.join(__dirname, "mynavi.json");
+  let db = { next: 0, corps: {} };
+  try { db = JSON.parse(fs.readFileSync(file, "utf8")); } catch {}
+  const headers = UA;
+  const save = () => fs.writeFileSync(file, JSON.stringify(db));
+  const r = await fetch(`https://job.mynavi.jp/sitemap_${MYNAVI_YEAR}_corp.xml`, { headers, signal: AbortSignal.timeout(60000) });
+  if (!r.ok) throw new Error(`사이트맵 HTTP ${r.status}`);
+  const corps = [...(await r.text()).matchAll(/\/search\/corp(\d+)\/is\.html/g)].map(m => m[1]);
+  if (!corps.length) throw new Error("사이트맵에 기업이 없음");
+  let done = 0, posts = 0;
+  for (let n = 0; n < limit; n++) {
+    await sleep(MYNAVI_DELAY);
+    const corp = corps[db.next % corps.length];
+    db.next = (db.next + 1) % corps.length;
+    let res;
+    try { res = await fetch(`https://job.mynavi.jp/${String(MYNAVI_YEAR).slice(2)}/pc/search/corp${corp}/is.html`, { headers, signal: AbortSignal.timeout(30000) }); }
+    catch (e) { console.log(`corp${corp}: ${e.message}`); continue; }
+    // 거부 응답이면 더 요청하지 않고 멈춤
+    if (res.status === 403 || res.status === 429 || res.headers.get("x-amzn-waf-action")) { console.log(`중단: HTTP ${res.status}`); break; }
+    if (!res.ok) { delete db.corps[corp]; continue; }
+    const items = parseMynavi(await res.text(), corp);
+    if (items.length) db.corps[corp] = { fetched: new Date().toISOString().slice(0, 10), items }; else delete db.corps[corp];
+    done++; posts += items.length;
+    if (done % 10 === 0) save(); // 중간에 끊겨도 받은 만큼 남김
+  }
+  save();
+  console.log(`마이나비: 기업 ${done}곳, 공고 ${posts}건 / 누적 기업 ${Object.keys(db.corps).length}곳 / 다음 위치 ${db.next}/${corps.length}`);
+}
+
 async function build() {
   const sources = { 잡코리아: jobkorea, 자소설닷컴: jasoseol, 링커리어: linkareer, 마이나비코리아: mynavikorea, 월드잡플러스: worldjob,
     リクナビ: rikunabi, キャリタス就活: careertasu, 外資就活: gaishishukatsu, キャリアチケット: careerticket, Daijob: daijob };
@@ -315,6 +369,12 @@ async function build() {
     }
     for (const j of got) if (!seen.has(j.id)) { seen.add(j.id); jobs.push(j); }
   });
+  // 마이나비는 별도 작업(mynaviCrawl)이 쌓아 둔 공고를 합침
+  try {
+    const db = JSON.parse(fs.readFileSync(path.join(__dirname, "mynavi.json"), "utf8"));
+    for (const c of Object.values(db.corps)) for (const j of c.items)
+      if (!seen.has(j.id) && !(j.deadline && j.deadline < today)) { seen.add(j.id); jobs.push(j); }
+  } catch {}
   for (const j of jobs) {
     j.sel = selTag(j.title);
     j.year = j.year ?? entryYear(j);
@@ -362,5 +422,13 @@ if (process.argv[2] === "test") {
   assert.equal(guessYear({ types: ["new", "exp"] }, now), 2027);
   assert.equal(guessYear({ types: ["new"] }, new Date("2026-05-01")), 2026);
   console.log("ok");
-} else if (process.argv[2] === "serve") serve();
+  const mn = parseMynavi(`<title>日本生命保険相互会社のインターンシップ＆キャリア | マイナビ2028</title><p>業種 生命保険 基本</p>
+    <div class="internList courseList" id="w"><h2 class="dtHead">仕事体験</h2><div class="course"><h4> <a href="/28/pc/corpinfo/displayInternship/index?corpId=2&amp;optNo=L7v1q" id="x">【2DAYS】アクチュアリーコース</a></h4>
+    <dl><div><dt>開催地域</dt> <dd> <span>東京</span> </dd></div><div><dt>応募締切</dt> <dd> <span class="last deadline">2027年1月3日</span> </dd></div></dl></div></div>`, "2");
+  assert.deepEqual([mn.length, mn[0].id, mn[0].title, mn[0].company, mn[0].tags, mn[0].location, mn[0].career, mn[0].deadline],
+    [1, "mn2-L7v1q", "【2DAYS】アクチュアリーコース", "日本生命保険相互会社", "生命保険", "東京", "仕事体験", "2027-01-03"]);
+  assert.equal(mn[0].url, "https://job.mynavi.jp/28/pc/corpinfo/displayInternship/index?corpId=2&optNo=L7v1q");
+  console.log("mynavi ok");
+} else if (process.argv[2] === "mynavi") mynaviCrawl(+process.argv[3] || 150).catch(e => { console.error(e.message); process.exit(1); });
+else if (process.argv[2] === "serve") serve();
 else build().catch(e => { console.error(e.message); process.exit(1); });
