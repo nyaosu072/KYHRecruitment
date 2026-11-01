@@ -126,6 +126,7 @@ ul.jobs{list-style:none;margin:0;padding:0;display:grid;gap:10px}
 .chip{font-size:12px;font-weight:600;padding:3px 8px;border-radius:6px;background:var(--fill);color:var(--t2);white-space:nowrap}
 .chip.kr{background:var(--blue-soft);color:var(--blue-t)}
 .chip.jp{background:var(--red-soft);color:var(--red)}
+.chip.sel{background:var(--blue);color:#fff}
 .chip.guess{font-weight:500;color:var(--t3)}
 .where{font-size:13px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
 .side{grid-column:2;grid-row:1/4;align-self:center;text-align:right}
@@ -171,6 +172,7 @@ ul.jobs{list-style:none;margin:0;padding:0;display:grid;gap:10px}
       <div class="fhead"><b data-t="filter"></b><button type="button" id="fold" aria-expanded="true" aria-controls="f"></button></div>
       <fieldset id="locbox"><legend data-t="loc"></legend><div class="seg" id="loc"></div></fieldset>
       <fieldset><legend data-t="type"></legend><div class="seg" id="type"></div></fieldset>
+      <fieldset><legend data-t="sel"></legend><div class="seg" id="sel"></div></fieldset>
       <fieldset><legend data-t="year"></legend><div class="seg" id="year"></div></fieldset>
       <div><label class="lbl" for="ind" data-t="ind"></label><select id="ind"></select></div>
       <div><label class="lbl" for="job" data-t="job"></label><select id="job"></select></div>
@@ -198,6 +200,7 @@ const EN=LANG==="en";
 
 const T={
   ko:{brand:"한일 채용공고",title:"한국과 일본의 채용공고를\n한 곳에서 찾아보세요",sub:"국내 채용 사이트와 일본 취업 사이트의 공고를 모아 6시간마다 새로 정리해요.",contact:"문의",filter:"필터",fold:"접기",unfold:"펼치기",
+    sel:"선고 연결",sels:{direct:"본선고 직결",early:"조기선고 우대"},
     loc:"근무지",type:"채용 구분",year:"입사년도",ind:"업종",job:"직무",kwPh:"회사명이나 공고 제목으로 검색",site:"사이트",
     sortSite:"사이트순",sortDl:"마감 임박순",all:"전체",loading:"공고를 불러오고 있어요",count:n=>`공고 ${n.toLocaleString()}개`,fetched:d=>`${d.getMonth()+1}월 ${d.getDate()}일 ${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")} 업데이트`,
     statJobs:"전체 공고",statSites:"사이트",statEvery:"업데이트",every:"6시간마다",
@@ -207,6 +210,7 @@ const T={
     dday:n=>n===0?"오늘 마감":`D-${n}`,until:d=>`~${+d.slice(5,7)}/${+d.slice(8)}`,
     loc_:{kr:"한국",jp:"일본",ovs:"해외"},types:{new:"신입",intern:"인턴",exp:"경력",contract:"계약직"}},
   en:{brand:"Japan Jobs",title:"Find jobs in Japan,\nall in one place",sub:"New-grad jobs, internships and info sessions from Japanese job sites, refreshed every 6 hours.",contact:"Contact",filter:"Filters",fold:"Hide",unfold:"Show",
+    sel:"Selection link",sels:{direct:"Direct to selection",early:"Early selection"},
     loc:"Location",type:"Type",year:"Start year",ind:"Industry",job:"Job type",kwPh:"Search by company or title",site:"Sites",
     sortSite:"By site",sortDl:"Deadline soonest",all:"All",loading:"Loading listings",count:n=>`${n.toLocaleString("en")} listings`,fetched:d=>"Updated "+d.toLocaleString("en",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}),
     statJobs:"Listings",statSites:"Sites",statEvery:"Refresh",every:"Every 6h",
@@ -243,7 +247,7 @@ $("sort").innerHTML=`<option value="">${T.sortSite}</option><option value="dl">$
 if(EN)$("locbox").hidden=true;
 
 function seg(id,opts,def,multi){$(id).innerHTML=opts.map(([v,t])=>`<input type="${multi?"checkbox":"radio"}" name="${id}" id="${id}-${v}" value="${v}"${multi||v==def?" checked":""}><label for="${id}-${v}">${esc(t)}</label>`).join("")}
-seg("loc",LOC,"all"); seg("type",TYPE,"all"); seg("year",YEAR,"all"); seg("site",SITES.map(s=>[s,siteName(s)]),null,true);
+seg("loc",LOC,"all"); seg("type",TYPE,"all"); seg("sel",[["all",T.all],["direct",T.sels.direct],["early",T.sels.early]],"all"); seg("year",YEAR,"all"); seg("site",SITES.map(s=>[s,siteName(s)]),null,true);
 $("ind").innerHTML=IND.map(r=>`<option value="${r[0]}">${esc(EN?r[4]:r[1])}</option>`).join("");
 $("job").innerHTML=JOB.map(r=>`<option value="${r[0]}">${esc(EN?r[4]:r[1])}</option>`).join("");
 const pick=n=>document.querySelector(`input[name=${n}]:checked`).value;
@@ -281,7 +285,7 @@ function render(){
   const sites=new Set([...document.querySelectorAll("input[name=site]:checked")].map(i=>i.value));
   const ind=row(IND,$("ind").value), job=row(JOB,$("job").value);
   page=1;
-  list=jobs.filter(j=>sites.has(j.site)&&(loc=="all"||j.loc==loc)&&(type=="all"||j.types.includes(type))&&matchYear(j,year)
+  list=jobs.filter(j=>sites.has(j.site)&&(loc=="all"||j.loc==loc)&&(type=="all"||j.types.includes(type))&&(pick("sel")=="all"||j.sel==pick("sel"))&&matchYear(j,year)
     &&(!kw||(j.title+" "+j.company+" "+(j.tags||"")).toLowerCase().includes(kw))
     &&matchWords(j,[ind[2],ind[3]].filter(Boolean))&&matchWords(j,[job[2],job[3]].filter(Boolean)));
   if($("sort").value=="dl")list=[...list].sort((a,b)=>(a.deadline||"9999").localeCompare(b.deadline||"9999"));
@@ -296,7 +300,7 @@ function card(j){
   return `<li class="job">
     <div class="co"><span>${esc(j.company||"")}</span><span class="site">${esc(siteName(j.site))}</span></div>
     <a class="title" href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>
-    <div class="chips">${EN?"":`<span class="chip ${j.loc}">${T.loc_[j.loc]}</span>`}${j.types.map(t=>`<span class="chip">${T.types[t]}</span>`).join("")}${j.year?`<span class="chip${j.yearGuess?" guess":""}"${j.yearGuess?` title="${T.guessTip}"`:""}>${T.start(j.year,j.yearGuess)}</span>`:""}${where?`<span class="where">${esc(where)}</span>`:""}</div>
+    <div class="chips">${j.sel?`<span class="chip sel">${T.sels[j.sel]}</span>`:""}${EN?"":`<span class="chip ${j.loc}">${T.loc_[j.loc]}</span>`}${j.types.map(t=>`<span class="chip">${T.types[t]}</span>`).join("")}${j.year?`<span class="chip${j.yearGuess?" guess":""}"${j.yearGuess?` title="${T.guessTip}"`:""}>${T.start(j.year,j.yearGuess)}</span>`:""}${where?`<span class="where">${esc(where)}</span>`:""}</div>
     <div class="side">${dd}</div></li>`;
 }
 

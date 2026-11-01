@@ -69,6 +69,13 @@ function guessYear(j, now = new Date()) {
   return now.getMonth() >= 8 ? y + 1 : y;
 }
 
+// 선고 연결: 제목에 적힌 표현만 인정 (본선고 직결 > 조기선고 우대). 없으면 null
+function selTag(title) {
+  if (/本選考直結|選考直結|内定直結|採用直結|本選考に直結|본선고 ?직결/.test(title)) return "direct";
+  if (/早期選考|選考優遇|選考免除|一次免除|選考パス|ES免除|조기 ?선고|채용 ?연계/.test(title)) return "early";
+  return null;
+}
+
 async function jobkorea() {
   const out = [];
   for (const kw of ["신입", "경력", "인턴", "일본어"]) for (const page of [1, 2, 3]) {
@@ -309,6 +316,7 @@ async function build() {
     for (const j of got) if (!seen.has(j.id)) { seen.add(j.id); jobs.push(j); }
   });
   for (const j of jobs) {
+    j.sel = selTag(j.title);
     j.year = j.year ?? entryYear(j);
     j.yearGuess = j.year == null;
     if (j.yearGuess) j.year = guessYear(j);
@@ -342,6 +350,11 @@ if (process.argv[2] === "test") {
   assert.equal(y("渡辺パイプ 新卒採用", "キャリタス就活"), 2027);
   assert.equal(y("東芝のインターンシップ", "リクナビ", ["intern"]), 2028);
   assert.equal(y("【2026年10月開催】仕事体験", "リクナビ", ["intern"]), 2028);
+  assert.equal(selTag("【内定直結】デジタルコンサルタント職 本選考"), "direct");
+  assert.equal(selTag("【選考直結型OC】グローバルプロジェクト体験"), "direct");
+  assert.equal(selTag("早期選考案内あり 1day仕事体験"), "early");
+  assert.equal(selTag("소프트캠프 UX/UI 디자이너 (채용 연계형 인턴)"), "early");
+  assert.equal(selTag("東宝 オンライン会社説明会"), null);
   assert.equal(guessYear({ types: ["exp"] }, now), 2026);
   assert.equal(guessYear({ types: ["contract"] }, now), 2026);
   assert.deepEqual(types("인천공항시설관리 2026년 제7차 계약직 채용"), ["contract"]);
