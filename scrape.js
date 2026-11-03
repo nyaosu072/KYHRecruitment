@@ -399,6 +399,13 @@ async function build() {
     リクナビ: rikunabi, キャリタス就活: careertasu, 外資就活: gaishishukatsu, キャリアチケット: careerticket, Daijob: daijob, ワンキャリア: onecareer };
   // 사이트끼리는 동시에, 한 사이트 안에서는 순서대로
   const res = await Promise.allSettled(Object.values(sources).map(f => f()));
+  // 연결이 잠깐 끊긴 사이트는 다른 사이트가 끝난 뒤 1분 쉬고 한 번 더 시도
+  const fns = Object.values(sources);
+  for (let i = 0; i < res.length; i++) {
+    if (res[i].status !== "rejected" || !/fetch failed|timeout|abort/i.test(res[i].reason.message)) continue;
+    await sleep(60000);
+    [res[i]] = await Promise.allSettled([fns[i]()]);
+  }
   const file = path.join(__dirname, "jobs.json");
   let prev = [];
   try { prev = JSON.parse(fs.readFileSync(file, "utf8")).jobs; } catch {}
