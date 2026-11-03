@@ -11,6 +11,8 @@ permissions:
 jobs:
   scrape:
     runs-on: ubuntu-latest
+    outputs:
+      retry: ${{ steps.check.outputs.retry }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -25,4 +27,29 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add jobs.json onecareer.json
           git diff --cached --quiet || git commit -m "공고 갱신 $(date -u +%F' '%H:%M)"
+          git pull --rebase
+          git push
+      - id: check
+        run: echo "retry=$(node scrape.js needs-retry)" >> "$GITHUB_OUTPUT"
+
+  # 연결 실패는 실행마다 배정되는 서버에 따라 갈리므로, 실패한 사이트만 새 서버에서 한 번 더 받음
+  retry:
+    needs: scrape
+    if: needs.scrape.outputs.retry == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scrape.js retry
+      - name: jobs.json 커밋
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add jobs.json
+          git diff --cached --quiet || git commit -m "실패한 사이트 재수집 $(date -u +%F' '%H:%M)"
+          git pull --rebase
           git push

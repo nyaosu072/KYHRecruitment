@@ -394,18 +394,41 @@ async function onecareer() {
   return Object.values(db).map(d => d.item).filter(j => j && !(j.start && j.start < today));
 }
 
+const SOURCES = { 잡코리아: jobkorea, 자소설닷컴: jasoseol, 링커리어: linkareer, 마이나비코리아: mynavikorea, 월드잡플러스: worldjob,
+  リクナビ: rikunabi, キャリタス就活: careertasu, 外資就活: gaishishukatsu, キャリアチケット: careerticket, Daijob: daijob, ワンキャリア: onecareer };
+
+function finish(j) {
+  j.sel = selTag(j.title);
+  j.year = j.year ?? entryYear(j);
+  j.yearGuess = j.year == null;
+  if (j.yearGuess) j.year = guessYear(j);
+  return j;
+}
+
+// 연결 오류로 실패한 사이트만 다시 받아 jobs.json에 반영. 실패는 실행마다 배정되는 서버에 따라 갈려서,
+// Actions의 다음 작업(새 서버)에서 실행함. 거부 응답(HTTP 403 등)은 다시 시도하지 않음
+async function retryFailed() {
+  const file = path.join(__dirname, "jobs.json");
+  const d = JSON.parse(fs.readFileSync(file, "utf8"));
+  for (const e of d.errors.filter(isConnError)) {
+    const name = e.split(":")[0];
+    try {
+      const got = await SOURCES[name]();
+      if (!got.length) continue;
+      const seen = new Set();
+      d.jobs = d.jobs.filter(j => j.site !== name).concat(got.filter(j => !seen.has(j.id) && seen.add(j.id)).map(finish));
+      d.errors = d.errors.filter(x => x !== e);
+      console.log(`${name}: ${seen.size}건 다시 받음`);
+    } catch (err) { console.log(`${name}: 다시 실패 (${err.message})`); }
+  }
+  fs.writeFileSync(file, JSON.stringify(d));
+}
+const isConnError = e => /fetch failed|timeout|abort/i.test(e);
+
 async function build() {
-  const sources = { 잡코리아: jobkorea, 자소설닷컴: jasoseol, 링커리어: linkareer, 마이나비코리아: mynavikorea, 월드잡플러스: worldjob,
-    リクナビ: rikunabi, キャリタス就活: careertasu, 外資就活: gaishishukatsu, キャリアチケット: careerticket, Daijob: daijob, ワンキャリア: onecareer };
+  const sources = SOURCES;
   // 사이트끼리는 동시에, 한 사이트 안에서는 순서대로
   const res = await Promise.allSettled(Object.values(sources).map(f => f()));
-  // 연결이 잠깐 끊긴 사이트는 다른 사이트가 끝난 뒤 1분 쉬고 한 번 더 시도
-  const fns = Object.values(sources);
-  for (let i = 0; i < res.length; i++) {
-    if (res[i].status !== "rejected" || !/fetch failed|timeout|abort/i.test(res[i].reason.message)) continue;
-    await sleep(60000);
-    [res[i]] = await Promise.allSettled([fns[i]()]);
-  }
   const file = path.join(__dirname, "jobs.json");
   let prev = [];
   try { prev = JSON.parse(fs.readFileSync(file, "utf8")).jobs; } catch {}
@@ -426,12 +449,7 @@ async function build() {
     for (const c of Object.values(db.corps)) for (const j of c.items)
       if (!seen.has(j.id) && !(j.deadline && j.deadline < today)) { seen.add(j.id); jobs.push(j); }
   } catch {}
-  for (const j of jobs) {
-    j.sel = selTag(j.title);
-    j.year = j.year ?? entryYear(j);
-    j.yearGuess = j.year == null;
-    if (j.yearGuess) j.year = guessYear(j);
-  }
+  jobs.forEach(finish);
   // 전부 실패하면 기존 jobs.json을 덮어쓰지 않음
   if (!jobs.length) throw new Error("모든 사이트 수집 실패: " + errors.join(" / "));
   fs.writeFileSync(file, JSON.stringify({ jobs, errors, fetched: new Date().toISOString() }));
@@ -488,5 +506,7 @@ if (process.argv[2] === "test") {
   assert.equal(parseOnecareer("<p>login</p>", "https://id.onecareer.jp/users/sign_in", "1"), null);
   console.log("onecareer ok");
 } else if (process.argv[2] === "mynavi") mynaviCrawl(+process.argv[3] || 150).catch(e => { console.error(e.message); process.exit(1); });
+else if (process.argv[2] === "retry") retryFailed().catch(e => { console.error(e.message); process.exit(1); });
+else if (process.argv[2] === "needs-retry") console.log(JSON.parse(fs.readFileSync(path.join(__dirname, "jobs.json"), "utf8")).errors.some(isConnError));
 else if (process.argv[2] === "serve") serve();
 else build().catch(e => { console.error(e.message); process.exit(1); });
