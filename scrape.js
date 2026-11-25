@@ -93,22 +93,6 @@ async function jobkorea() {
   return out;
 }
 
-async function jasoseol() {
-  const now = new Date(), end = new Date(now.getTime() + 45 * 864e5);
-  const j = JSON.parse(await get("https://jasoseol.com/employment/calendar_list.json", {
-    method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ start_time: now.toISOString(), end_time: end.toISOString() }),
-  }));
-  // division: 1 신입, 2 경력, 3 인턴, 5 신입·경력
-  const div = { 1: ["new"], 2: ["exp"], 3: ["intern"], 5: ["new", "exp"] };
-  return j.employment.filter(e => new Date(e.end_time) >= now).map(e => ({
-    site: "자소설닷컴", loc: "kr", id: "js" + e.id, title: e.title, company: e.name, location: "",
-    tags: "", deadline: e.end_time.slice(0, 10),
-    types: [...new Set([...e.employments.flatMap(x => div[x.division] || []), ...types(e.title)])],
-    url: `https://jasoseol.com/recruit/${e.id}`,
-  }));
-}
-
 async function mynavikorea() {
   const out = [];
   // recruit_list = 국내(일본계 한국법인 등), recruit_tube_list = 해외(일본 현지)
@@ -396,7 +380,7 @@ async function onecareer() {
   return Object.values(db).map(d => d.item).filter(j => j && !(j.start && j.start < today));
 }
 
-const SOURCES = { 잡코리아: jobkorea, 자소설닷컴: jasoseol, 링커리어: linkareer, 마이나비코리아: mynavikorea, 월드잡플러스: worldjob,
+const SOURCES = { 잡코리아: jobkorea, 링커리어: linkareer, 마이나비코리아: mynavikorea, 월드잡플러스: worldjob,
   リクナビ: rikunabi, キャリタス就活: careertasu, 外資就活: gaishishukatsu, キャリアチケット: careerticket, Daijob: daijob, ワンキャリア: onecareer };
 
 function finish(j) {
