@@ -238,20 +238,22 @@ async function worldjob() {
     const h = await get("https://www.worldjob.or.kr/advnc/ajax/getEpmtList.do", { method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded; charset=UTF-8", "x-requested-with": "XMLHttpRequest" },
       body: `showItemListCount=50&pageIndex=${page}&orderByType=DESC&orderByKey=A.DTA_RGST_DT&dobType=1&viewVersion=V2` });
-    const boxes = h.split('class="post-box"').slice(1);
+    // 2026-11 개편: 칸 이름이 post-box → postnew-box, 항목 순서가 [국가, 직무, 경력, 학력, 연봉, 고용형태, 비자]로 바뀜. 둘 다 읽음
+    const boxes = h.split(/class="post(?:new)?-box[\s"]/).slice(1);
     if (!boxes.length) break;
     for (const b of boxes) {
       if (!b.includes('alt="일본 국기"')) continue;
       const v = b.match(/goView1\('([^']+)','([^']+)','([^']+)','([^']+)'\)/);
       if (!v) continue;
       const li = [...((b.match(/<ul>([\s\S]*?)<\/ul>/) || [, ""])[1]).matchAll(/<li>([\s\S]*?)<\/li>/g)].map(m => text(m[1].replace(/&nbsp;/g, " ")));
-      const empType = (text(b).match(/\[\s*(정규직|계약직|파견직|인턴|기타)\s*\]/) || [, ""])[1];
+      const empType = li.find(x => /^(정규직|계약직|파견직|인턴|기타)$/.test(x)) || (text(b).match(/\[\s*(정규직|계약직|파견직|인턴|기타)\s*\]/) || [, ""])[1];
       // 마감일은 "10/28(수)"처럼 월/일만 있음. 지난 달 숫자면 내년으로 봄
-      const md = text((b.match(/day-box">([\s\S]*?)<\/p>/) || [, ""])[1]).match(/(\d\d)\/(\d\d)/);
+      const md = text((b.match(/(?:item-dday|day-box)">([\s\S]*?)<\/(?:div|p)>/) || [, ""])[1]).match(/(\d\d)\/(\d\d)/);
       const deadline = md ? `${now.getFullYear() + (+md[1] < now.getMonth() ? 1 : 0)}-${md[1]}-${md[2]}` : undefined;
-      const career = li[1] || "";
+      const career = li.find(x => /경력|신입|무관/.test(x)) || "";
+      const tags = li[0] === "일본" ? li[1] : li[0];
       out.push({ site: "월드잡플러스", loc: "jp", id: "wj" + v[1], title: text(b.match(/<h5[\s\S]*?<\/h5>/)[0]),
-        company: text((b.match(/busiInfoPopup[^>]*>([\s\S]*?)<i/) || [, ""])[1]), tags: li[0], career, location: "일본", deadline,
+        company: text((b.match(/busiInfoPopup[^>]*>([\s\S]*?)<(?:i|\/a)/) || [, ""])[1]), tags, career, location: "일본", deadline,
         types: empType === "인턴" ? ["intern"] : [...(/무관/.test(career) ? ["new", "exp"] : /경력/.test(career) ? ["exp"] : ["new"]), ...(/계약직|파견직/.test(empType) ? ["contract"] : [])],
         url: `https://www.worldjob.or.kr/advnc/view.do?dobType=${v[4]}&joCrtfcNo=${v[1]}&joCrtfcDsp=${v[2]}&joCrtfcDspSn=${v[3]}` });
     }
