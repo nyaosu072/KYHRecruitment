@@ -129,14 +129,18 @@ ul.jobs{list-style:none;margin:0;padding:0;display:grid;gap:10px}
 .chip.sel{background:var(--blue);color:#fff}
 .chip.guess{font-weight:500;color:var(--t3)}
 .where{font-size:13px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
-.side{grid-column:2;grid-row:1/4;align-self:center;text-align:right}
-.dday{display:inline-block;font-size:13px;font-weight:700;padding:6px 10px;border-radius:10px;background:var(--fill);color:var(--t2);white-space:nowrap;font-variant-numeric:tabular-nums}
+.side{grid-column:2;grid-row:1/4;align-self:center;display:grid;justify-items:end;gap:4px;text-align:right}
+.dday{display:inline-block;font-size:15px;font-weight:700;padding:6px 12px;border-radius:10px;background:var(--blue-soft);color:var(--blue-t);white-space:nowrap;font-variant-numeric:tabular-nums}
 .dday.soon{background:var(--red-soft);color:var(--red)}
+.until{font-size:12px;color:var(--t3);white-space:nowrap;font-variant-numeric:tabular-nums}
 @media (max-width:560px){
+  /* 휴대폰에서도 남은 기간은 카드 오른쪽 위에 */
   .job{grid-template-columns:minmax(0,1fr);padding:18px}
-  .side{grid-column:1;grid-row:auto;text-align:left;order:-1;margin-bottom:-2px}
+  .side{position:absolute;top:16px;right:16px;grid-area:auto}
   .side:empty{display:none}
-  .dday{padding:3px 8px;font-size:12px}
+  .job:has(.dday) .co{padding-right:76px}
+  .dday{padding:4px 9px;font-size:13px}
+  .until{display:none}
 }
 .empty{background:var(--card);border-radius:18px;padding:56px 20px;text-align:center;color:var(--t3)}
 .empty b{display:block;color:var(--t1);font-size:17px;margin-bottom:4px}
@@ -295,7 +299,8 @@ function render(){
 
 function card(j){
   const n=daysLeft(j.deadline);
-  const dd=n==null?"":`<span class="dday${n<=7?" soon":""}">${n<=7?T.dday(n):T.until(j.deadline)}</span>`;
+  // 남은 기간은 항상 표시, 7일 이내는 빨간색. 아래에 마감 날짜
+  const dd=n==null?"":`<span class="dday${n<=7?" soon":""}">${T.dday(n)}</span><span class="until">${T.until(j.deadline)}</span>`;
   const where=[j.location,j.career].filter(Boolean).join(" · ");
   return `<li class="job">
     <div class="co"><span>${esc(j.company||"")}</span><span class="site">${esc(siteName(j.site))}</span></div>
